@@ -610,11 +610,209 @@ const removeMember = async (req, res) => {
   }
 };
 
+/**
+ * Helper function to validate time format (HH:MM)
+ * @param {string} time - Time string to validate
+ * @returns {boolean} Whether the time format is valid
+ */
+const isValidTimeFormat = (time) => {
+  if (typeof time !== 'string') return false;
+  
+  const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  return timeRegex.test(time);
+};
+
+/**
+ * Helper function to convert time string to minutes for comparison
+ * @param {string} time - Time string in HH:MM format
+ * @returns {number} Time in minutes from 00:00
+ */
+const timeToMinutes = (time) => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+/**
+ * Helper function to validate rule settings
+ * @param {Object} rule - Rule object to validate
+ * @returns {Object} Validation result with isValid and error message
+ */
+const validateRule = (rule) => {
+  if (!rule || typeof rule !== 'object') {
+    return { isValid: true }; // Rule is optional
+  }
+
+  const { startTime, endTime, maxMissedDays } = rule;
+
+  // Validate time formats
+  if (startTime && !isValidTimeFormat(startTime)) {
+    return { 
+      isValid: false, 
+      error: 'Invalid time format. Use HH:MM format (00:00-23:59)' 
+    };
+  }
+
+  if (endTime && !isValidTimeFormat(endTime)) {
+    return { 
+      isValid: false, 
+      error: 'Invalid time format. Use HH:MM format (00:00-23:59)' 
+    };
+  }
+
+  // Validate time logic (end time must be after start time)
+  if (startTime && endTime) {
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+    
+    if (endMinutes <= startMinutes) {
+      return { 
+        isValid: false, 
+        error: 'End time must be after start time' 
+      };
+    }
+  }
+
+  // Validate maxMissedDays
+  if (maxMissedDays !== undefined) {
+    if (!Number.isInteger(maxMissedDays) || maxMissedDays < 0) {
+      return { 
+        isValid: false, 
+        error: 'Max missed days must be a positive integer' 
+      };
+    }
+  }
+
+  return { isValid: true };
+};
+
+/**
+ * Helper function to validate settings
+ * @param {Object} settings - Settings object to validate
+ * @returns {Object} Validation result with isValid and error message
+ */
+const validateSettings = (settings) => {
+  if (!settings || typeof settings !== 'object') {
+    return { isValid: true }; // Settings is optional
+  }
+
+  const { checkinContentVisibility } = settings;
+
+  if (checkinContentVisibility !== undefined) {
+    const validVisibilityValues = ['public', 'private', 'creatorOnly'];
+    if (!validVisibilityValues.includes(checkinContentVisibility)) {
+      return { 
+        isValid: false, 
+        error: 'Checkin content visibility must be: public, private, or creatorOnly' 
+      };
+    }
+  }
+
+  return { isValid: true };
+};
+
+/**
+ * Update level settings and privacy controls
+ * PUT /api/levels/:id
+ */
+const updateLevelSettings = async (req, res) => {
+  try {
+    const { id: levelId } = req.params;
+    const { name, description, rule, settings, startDate, endDate } = req.body;
+    const userId = req.user.id;
+
+    // Find the level
+    const level = await prisma.level.findUnique({
+      where: { id: levelId }
+    });
+
+    if (!level) {
+      return res.status(404).json({ error: 'Level not found' });
+    }
+
+    // Check if user is a member and get their role
+    const userMember = await prisma.levelMember.findFirst({
+      where: {
+        playerId: userId,
+        levelId: levelId,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!userMember || userMember.role !== 'CREATOR') {
+      return res.status(403).json({ error: 'Only the level creator can update level settings' });
+    }
+
+    // Check if level is completed or inactive
+    if (!level.isActive || (level.endDate && level.endDate < new Date())) {
+      return res.status(409).json({ error: 'Cannot modify completed or inactive level' });
+    }
+
+    // Validate rule settings
+    if (rule) {
+      const ruleValidation = validateRule(rule);
+      if (!ruleValidation.isValid) {
+        return res.status(400).json({ error: ruleValidation.error });
+      }
+    }
+
+    // Validate settings
+    if (settings) {
+      const settingsValidation = validateSettings(settings);
+      if (!settingsValidation.isValid) {
+        return res.status(400).json({ error: settingsValidation.error });
+      }
+    }
+
+    // Build update data object
+    const updateData = {};
+
+    if (name !== undefined) {
+      updateData.name = name;
+    }
+
+    if (description !== undefined) {
+      updateData.description = description;
+    }
+
+    if (rule !== undefined) {
+      updateData.rule = rule;
+    }
+
+    if (settings !== undefined) {
+      updateData.settings = settings;
+    }
+
+    if (startDate !== undefined) {
+      updateData.startDate = new Date(startDate);
+    }
+
+    if (endDate !== undefined) {
+      updateData.endDate = new Date(endDate);
+    }
+
+    // Update the level
+    const updatedLevel = await prisma.level.update({
+      where: { id: levelId },
+      data: updateData
+    });
+
+    res.json({
+      success: true,
+      message: 'Level settings updated successfully',
+      level: formatLevelResponse(updatedLevel, userMember.role, level.ownerId === userId)
+    });
+
+  } catch (error) {
+    return handleDatabaseError(error, 'update level settings', res);
+  }
+};
+
 module.exports = {
   createLevel,
   getLevels,
   getLevelDetails,
   joinLevel,
   updateMemberRole,
-  removeMember
+  removeMember,
+  updateLevelSettings
 };

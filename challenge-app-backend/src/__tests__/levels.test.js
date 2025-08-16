@@ -13,6 +13,7 @@ jest.mock('../models/prisma', () => ({
     create: jest.fn(),
     findUnique: jest.fn(),
     findMany: jest.fn(),
+    update: jest.fn(),
   },
   levelMember: {
     create: jest.fn(),
@@ -1916,5 +1917,673 @@ describe('GET /api/levels/:id', () => {
     
     const memberStatuses = response.body.level.members.map(m => m.status);
     expect(memberStatuses).toEqual(['ACTIVE', 'ACTIVE']);
+  });
+});
+
+describe('PUT /api/levels/:id', () => {
+  let app;
+  let validToken;
+  const mockUser = {
+    id: 'creator-user-id',
+    email: 'creator@example.com',
+    name: 'Creator User'
+  };
+
+  beforeEach(() => {
+    app = createTestApp();
+    validToken = jwt.sign(mockUser, process.env.JWT_SECRET || 'your-default-secret-change-this');
+    jest.clearAllMocks();
+  });
+
+  it('should return 401 when no authorization token is provided', async () => {
+    const updateData = {
+      name: 'Updated Level Name',
+      description: 'Updated description'
+    };
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .send(updateData);
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Access token is required');
+  });
+
+  it('should return 401 when invalid token is provided', async () => {
+    const updateData = {
+      name: 'Updated Level Name'
+    };
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', 'Bearer invalid-token')
+      .send(updateData);
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Invalid token');
+  });
+
+  it('should return 404 when level is not found', async () => {
+    const updateData = {
+      name: 'Updated Level Name'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(null);
+
+    const response = await request(app)
+      .put('/api/levels/non-existent-level')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Level not found');
+  });
+
+  it('should return 403 when user is not the CREATOR', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: 'other-user-id',
+      isActive: true,
+      endDate: new Date('2025-09-20T00:00:00Z')
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'PLAYER',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Updated Level Name'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Only the level creator can update level settings');
+  });
+
+  it('should return 409 when trying to update a completed level', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: false,
+      endDate: new Date('2025-08-01T00:00:00Z') // Past date
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Updated Level Name'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe('Cannot modify completed or inactive level');
+  });
+
+  it('should return 400 when rule has invalid time format', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true,
+      endDate: new Date('2025-09-20T00:00:00Z')
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Updated Level Name',
+      rule: {
+        startTime: '25:00', // Invalid time
+        endTime: '22:00',
+        maxMissedDays: 3
+      }
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Invalid time format. Use HH:MM format (00:00-23:59)');
+  });
+
+  it('should return 400 when end time is before start time', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true,
+      endDate: new Date('2025-09-20T00:00:00Z')
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Updated Level Name',
+      rule: {
+        startTime: '22:00',
+        endTime: '06:00', // End time before start time
+        maxMissedDays: 3
+      }
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('End time must be after start time');
+  });
+
+  it('should return 400 when maxMissedDays is not a positive integer', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true,
+      endDate: new Date('2025-09-20T00:00:00Z')
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Updated Level Name',
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: -1 // Invalid value
+      }
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Max missed days must be a positive integer');
+  });
+
+  it('should return 400 when checkinContentVisibility is invalid', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true,
+      endDate: new Date('2025-09-20T00:00:00Z')
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Updated Level Name',
+      settings: {
+        checkinContentVisibility: 'invalid_value'
+      }
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Checkin content visibility must be: public, private, or creatorOnly');
+  });
+
+  it('should successfully update level with basic information only', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Original Level',
+      description: 'Original description',
+      ownerId: mockUser.id,
+      isActive: true,
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'public'
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Updated Level Name',
+      description: 'Updated description'
+    };
+
+    const mockUpdatedLevel = {
+      ...mockLevel,
+      name: updateData.name,
+      description: updateData.description,
+      updatedAt: new Date()
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+    prisma.level.update.mockResolvedValue(mockUpdatedLevel);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe('Level settings updated successfully');
+    expect(response.body.level.name).toBe(updateData.name);
+    expect(response.body.level.description).toBe(updateData.description);
+
+    expect(prisma.level.update).toHaveBeenCalledWith({
+      where: { id: 'test-level-id' },
+      data: {
+        name: updateData.name,
+        description: updateData.description
+      }
+    });
+  });
+
+  it('should successfully update level with rule settings', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'Test description',
+      ownerId: mockUser.id,
+      isActive: true,
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'public'
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Updated Level Name',
+      rule: {
+        startTime: '05:00',
+        endTime: '23:00',
+        maxMissedDays: 5
+      }
+    };
+
+    const mockUpdatedLevel = {
+      ...mockLevel,
+      name: updateData.name,
+      rule: updateData.rule,
+      updatedAt: new Date()
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+    prisma.level.update.mockResolvedValue(mockUpdatedLevel);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.level.rule.startTime).toBe('05:00');
+    expect(response.body.level.rule.endTime).toBe('23:00');
+    expect(response.body.level.rule.maxMissedDays).toBe(5);
+
+    expect(prisma.level.update).toHaveBeenCalledWith({
+      where: { id: 'test-level-id' },
+      data: {
+        name: updateData.name,
+        rule: updateData.rule
+      }
+    });
+  });
+
+  it('should successfully update level with privacy settings', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'Test description',
+      ownerId: mockUser.id,
+      isActive: true,
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'public'
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Updated Level Name',
+      settings: {
+        checkinContentVisibility: 'private'
+      }
+    };
+
+    const mockUpdatedLevel = {
+      ...mockLevel,
+      name: updateData.name,
+      settings: updateData.settings,
+      updatedAt: new Date()
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+    prisma.level.update.mockResolvedValue(mockUpdatedLevel);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.level.settings.checkinContentVisibility).toBe('private');
+
+    expect(prisma.level.update).toHaveBeenCalledWith({
+      where: { id: 'test-level-id' },
+      data: {
+        name: updateData.name,
+        settings: updateData.settings
+      }
+    });
+  });
+
+  it('should successfully update level with date settings', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'Test description',
+      ownerId: mockUser.id,
+      isActive: true,
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'public'
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Updated Level Name',
+      startDate: '2025-08-25T00:00:00Z',
+      endDate: '2025-10-25T00:00:00Z'
+    };
+
+    const mockUpdatedLevel = {
+      ...mockLevel,
+      name: updateData.name,
+      startDate: new Date(updateData.startDate),
+      endDate: new Date(updateData.endDate),
+      updatedAt: new Date()
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+    prisma.level.update.mockResolvedValue(mockUpdatedLevel);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(new Date(response.body.level.startDate)).toEqual(new Date(updateData.startDate));
+    expect(new Date(response.body.level.endDate)).toEqual(new Date(updateData.endDate));
+
+    expect(prisma.level.update).toHaveBeenCalledWith({
+      where: { id: 'test-level-id' },
+      data: {
+        name: updateData.name,
+        startDate: new Date(updateData.startDate),
+        endDate: new Date(updateData.endDate)
+      }
+    });
+  });
+
+  it('should successfully update level with all settings combined', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'Test description',
+      ownerId: mockUser.id,
+      isActive: true,
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'public'
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Completely Updated Level',
+      description: 'Completely updated description',
+      rule: {
+        startTime: '07:00',
+        endTime: '21:00',
+        maxMissedDays: 2
+      },
+      settings: {
+        checkinContentVisibility: 'creatorOnly'
+      },
+      startDate: '2025-08-30T00:00:00Z',
+      endDate: '2025-11-30T00:00:00Z'
+    };
+
+    const mockUpdatedLevel = {
+      ...mockLevel,
+      name: updateData.name,
+      description: updateData.description,
+      rule: updateData.rule,
+      settings: updateData.settings,
+      startDate: new Date(updateData.startDate),
+      endDate: new Date(updateData.endDate),
+      updatedAt: new Date()
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+    prisma.level.update.mockResolvedValue(mockUpdatedLevel);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.level.name).toBe(updateData.name);
+    expect(response.body.level.description).toBe(updateData.description);
+    expect(response.body.level.rule).toEqual(updateData.rule);
+    expect(response.body.level.settings).toEqual(updateData.settings);
+    expect(new Date(response.body.level.startDate)).toEqual(new Date(updateData.startDate));
+    expect(new Date(response.body.level.endDate)).toEqual(new Date(updateData.endDate));
+
+    expect(prisma.level.update).toHaveBeenCalledWith({
+      where: { id: 'test-level-id' },
+      data: {
+        name: updateData.name,
+        description: updateData.description,
+        rule: updateData.rule,
+        settings: updateData.settings,
+        startDate: new Date(updateData.startDate),
+        endDate: new Date(updateData.endDate)
+      }
+    });
+  });
+
+  it('should handle database errors gracefully', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true,
+      endDate: new Date('2025-09-20T00:00:00Z')
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const updateData = {
+      name: 'Updated Level Name'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+    prisma.level.update.mockRejectedValue(new Error('Database connection failed'));
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send(updateData);
+
+    expect(response.status).toBe(500);
+    expect(response.body.error).toBe('Failed to update level settings');
   });
 });
