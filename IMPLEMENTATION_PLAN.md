@@ -85,7 +85,7 @@ Cron Jobs ← Email Service ← Notification System ← Auto Elimination
 - [x] Implement GET /levels/:id endpoint with role-based data filtering
 - [x] Create level member management endpoints
 - [x] Implement level settings and privacy controls
-- [ ] Add level status management (active/completed)
+- [x] Add level status management (active/completed)
 
 #### Stage 2.1.3: Level Integration Testing
 - [ ] Test level creation with various rule configurations
