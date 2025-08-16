@@ -13,8 +13,15 @@ A gamified habit-tracking app with retro pixel aesthetics that transforms habit 
 - ✅ **Frontend Setup**: React Native (Expo) with cross-platform support
 - ✅ **Google OAuth**: Complete authentication system with @react-native-google-signin
 - ✅ **Multi-language**: i18n support (Traditional Chinese / English)
-- ✅ **Database**: User management with automatic profile creation
+- ✅ **Database V3.0**: Enhanced schema with pixel abode, achievements, and social systems
 - ✅ **Development Tools**: ESLint, Prettier, Prisma Studio
+
+**Phase 2 Ready** - Database V3.0 Architecture
+- 🆕 **Pixel Abode System**: JSON-based player customization state
+- 🆕 **Achievement System**: Comprehensive player progress tracking  
+- 🆕 **Quiz System**: Challenge validation with boss battles
+- 🆕 **Social Foundation**: Friendship and notification systems
+- 🔄 **Migration Ready**: Safe upgrade path from V1.0 to V3.0
 
 ## 🏗️ Architecture
 
@@ -208,8 +215,9 @@ npm run format        # Run Prettier
 ## 🔧 Development
 
 ### Documentation
-- **[DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md)** - Complete development & testing guide
-- **[OAUTH_TROUBLESHOOTING.md](./OAUTH_TROUBLESHOOTING.md)** - Google OAuth troubleshooting
+- **[docs/](./docs/)** - Organized documentation index
+- **[docs/1-configuration/DEVELOPMENT_GUIDE.md](./docs/1-configuration/DEVELOPMENT_GUIDE.md)** - Complete development guide
+- **[docs/2-troubleshooting/OAUTH_TROUBLESHOOTING.md](./docs/2-troubleshooting/OAUTH_TROUBLESHOOTING.md)** - OAuth troubleshooting
 - **[CLAUDE.md](./CLAUDE.md)** - Development guidance for Claude Code
 - **[SPEC.md](./SPEC.md)** - Detailed product specification
 

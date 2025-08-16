@@ -40,26 +40,31 @@ const verifyGoogleToken = async (token) => {
       console.log('✅ Token verified as access token');
     }
     
-    // Find or create user in database
-    let user = await prisma.user.findUnique({
+    // Find or create player in database
+    let player = await prisma.player.findUnique({
       where: { email: payload.email }
     });
 
-    if (!user) {
-      // Create new user
-      user = await prisma.user.create({
+    if (!player) {
+      // Create new player
+      player = await prisma.player.create({
         data: {
           email: payload.email,
           name: payload.name,
           avatarUrl: payload.picture,
           googleId: payload.sub,
-          language: 'zh-TW' // Default to Traditional Chinese
+          language: 'zh-TW', // Default to Traditional Chinese
+          pixelAbodeState: {
+            scene: "default_room",
+            items: [],
+            layout: {}
+          }
         }
       });
     } else {
-      // Update existing user info
-      user = await prisma.user.update({
-        where: { id: user.id },
+      // Update existing player info
+      player = await prisma.player.update({
+        where: { id: player.id },
         data: {
           name: payload.name,
           avatarUrl: payload.picture,
@@ -68,7 +73,7 @@ const verifyGoogleToken = async (token) => {
       });
     }
 
-    return user;
+    return player;
   } catch (error) {
     console.error('Error verifying Google token:', error);
     return null;

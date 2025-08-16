@@ -1,0 +1,28 @@
+{
+  "users": [
+    {
+      "id": "cmedpxd8j0000rlh4gnt8o3mt",
+      "email": "structures0124@gmail.com",
+      "name": "貝貝",
+      "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ4uauI_32wTDa9hgQgIRwXDytaweDIwqdzONcJu6LN9cc_jw=s96-c",
+      "googleId": "108840199068284364512",
+      "language": "zh-TW",
+      "createdAt": "2025-08-16T03:49:30.307Z",
+      "updatedAt": "2025-08-16T04:19:21.607Z"
+    },
+    {
+      "id": "cmedpzrz50001rlh41ay4fafy",
+      "email": "gigilai1688@gmail.com",
+      "name": "賴文琪",
+      "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocKiM3dAvlvTV3BSB5vcHfa-wmvMebkWLyeF9e4VWZfgU6Ny8w=s96-c",
+      "googleId": "117122361726214603964",
+      "language": "zh-TW",
+      "createdAt": "2025-08-16T03:51:22.721Z",
+      "updatedAt": "2025-08-16T04:20:20.192Z"
+    }
+  ],
+  "levels": [],
+  "levelMembers": [],
+  "checkIns": [],
+  "keepNotes": []
+}

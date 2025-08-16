@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  avatarUrl    String?
+  googleId     String?       @unique
+  language     String        @default("zh-TW")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  checkIns     CheckIn[]
+  keepNotes    KeepNote[]
+  levelMembers LevelMember[]
+  ownedLevels  Level[]       @relation("LevelOwner")
+
+  @@map("users")
+}
+
+model Level {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  inviteCode   String        @unique
+  ownerId      String
+  isActive     Boolean       @default(true)
+  startDate    DateTime      @default(now())
+  endDate      DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  rules        Json          @default("{\"endTime\": \"23:00\", \"startTime\": \"05:00\", \"maxMissedDays\": 3}")
+  settings     Json          @default("{\"checkinContentVisibility\": \"public\"}")
+  checkIns     CheckIn[]
+  levelMembers LevelMember[]
+  owner        User          @relation("LevelOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@map("levels")
+}
+
+model LevelMember {
+  id         String   @id @default(cuid())
+  playerId   String
+  levelId    String
+  role       Role     @default(PLAYER)
+  status     Status   @default(ACTIVE)
+  missedDays Int      @default(0)
+  joinedAt   DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  level      Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  player     User     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, levelId])
+  @@map("level_members")
+}
+
+model CheckIn {
+  id            String      @id @default(cuid())
+  playerId      String
+  levelId       String
+  type          CheckInType @default(TEXT)
+  content       String?
+  imagePixelUrl String?
+  createdAt     DateTime    @default(now())
+  level         Level       @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  player        User        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, levelId, createdAt])
+  @@map("check_ins")
+}
+
+model KeepNote {
+  id        String   @id @default(cuid())
+  playerId  String
+  content   String
+  tags      String[] @default([])
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  player    User     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@map("keep_notes")
+}
+
+enum Role {
+  CREATOR
+  PLAYER
+  AUDIENCE
+}
+
+enum Status {
+  ACTIVE
+  ELIMINATED
+}
+
+enum CheckInType {
+  TEXT
+  IMAGE
+  CHECKMARK
+}
