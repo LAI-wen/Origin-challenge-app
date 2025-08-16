@@ -83,7 +83,7 @@ Cron Jobs ← Email Service ← Notification System ← Auto Elimination
 - [x] Implement GET /levels endpoint for user's levels
 - [x] Implement POST /levels/:id/join endpoint with invite codes
 - [x] Implement GET /levels/:id endpoint with role-based data filtering
-- [ ] Create level member management endpoints
+- [x] Create level member management endpoints
 - [ ] Implement level settings and privacy controls
 - [ ] Add level status management (active/completed)
 

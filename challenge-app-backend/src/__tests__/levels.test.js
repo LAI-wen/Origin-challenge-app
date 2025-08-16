@@ -18,6 +18,7 @@ jest.mock('../models/prisma', () => ({
     create: jest.fn(),
     findMany: jest.fn(),
     findFirst: jest.fn(),
+    update: jest.fn(),
   },
 }));
 
@@ -808,6 +809,589 @@ describe('POST /api/levels/:id/join', () => {
         status: 'ACTIVE'
       }
     });
+  });
+});
+
+describe('PUT /api/levels/:id/members/:memberId', () => {
+  let app;
+  let validToken;
+  const mockUser = {
+    id: 'creator-user-id',
+    email: 'creator@example.com',
+    name: 'Creator User'
+  };
+
+  beforeEach(() => {
+    app = createTestApp();
+    validToken = jwt.sign(mockUser, process.env.JWT_SECRET || 'your-default-secret-change-this');
+    jest.clearAllMocks();
+  });
+
+  it('should return 401 when no authorization token is provided', async () => {
+    const response = await request(app)
+      .put('/api/levels/test-level-id/members/member-id')
+      .send({ role: 'AUDIENCE' });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Access token is required');
+  });
+
+  it('should return 401 when invalid token is provided', async () => {
+    const response = await request(app)
+      .put('/api/levels/test-level-id/members/member-id')
+      .set('Authorization', 'Bearer invalid-token')
+      .send({ role: 'AUDIENCE' });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Invalid token');
+  });
+
+  it('should return 400 when role is missing', async () => {
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id/members/member-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Role is required');
+  });
+
+  it('should return 400 when role is invalid', async () => {
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id/members/member-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ role: 'INVALID_ROLE' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Role must be either PLAYER or AUDIENCE');
+  });
+
+  it('should return 404 when level is not found', async () => {
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(null);
+
+    const response = await request(app)
+      .put('/api/levels/non-existent-level/members/member-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ role: 'AUDIENCE' });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Level not found');
+  });
+
+  it('should return 403 when user is not the CREATOR', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: 'other-user-id',
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'PLAYER',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id/members/member-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ role: 'AUDIENCE' });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Only the level creator can manage members');
+  });
+
+  it('should return 404 when target member is not found', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst
+      .mockResolvedValueOnce(mockUserMember) // User membership check
+      .mockResolvedValueOnce(null); // Target member check
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id/members/non-existent-member')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ role: 'AUDIENCE' });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Member not found or not active in this level');
+  });
+
+  it('should return 400 when trying to update CREATOR role', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const mockTargetMember = {
+      id: 'target-member-id',
+      playerId: 'target-player-id',
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst
+      .mockResolvedValueOnce(mockUserMember) // User membership check
+      .mockResolvedValueOnce(mockTargetMember); // Target member check
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id/members/target-member-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ role: 'AUDIENCE' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Cannot modify the creator role');
+  });
+
+  it('should successfully update member role from PLAYER to AUDIENCE', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const mockTargetMember = {
+      id: 'target-member-id',
+      playerId: 'target-player-id',
+      levelId: 'test-level-id',
+      role: 'PLAYER',
+      status: 'ACTIVE'
+    };
+
+    const mockUpdatedMember = {
+      ...mockTargetMember,
+      role: 'AUDIENCE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst
+      .mockResolvedValueOnce(mockUserMember) // User membership check
+      .mockResolvedValueOnce(mockTargetMember); // Target member check
+    prisma.levelMember.update.mockResolvedValue(mockUpdatedMember);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id/members/target-member-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ role: 'AUDIENCE' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe('Member role updated successfully');
+    expect(response.body.member.role).toBe('AUDIENCE');
+
+    expect(prisma.levelMember.update).toHaveBeenCalledWith({
+      where: { id: 'target-member-id' },
+      data: { role: 'AUDIENCE' }
+    });
+  });
+
+  it('should successfully update member role from AUDIENCE to PLAYER', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const mockTargetMember = {
+      id: 'target-member-id',
+      playerId: 'target-player-id',
+      levelId: 'test-level-id',
+      role: 'AUDIENCE',
+      status: 'ACTIVE'
+    };
+
+    const mockUpdatedMember = {
+      ...mockTargetMember,
+      role: 'PLAYER'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst
+      .mockResolvedValueOnce(mockUserMember) // User membership check
+      .mockResolvedValueOnce(mockTargetMember); // Target member check
+    prisma.levelMember.update.mockResolvedValue(mockUpdatedMember);
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id/members/target-member-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ role: 'PLAYER' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe('Member role updated successfully');
+    expect(response.body.member.role).toBe('PLAYER');
+
+    expect(prisma.levelMember.update).toHaveBeenCalledWith({
+      where: { id: 'target-member-id' },
+      data: { role: 'PLAYER' }
+    });
+  });
+
+  it('should handle database errors gracefully', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const mockTargetMember = {
+      id: 'target-member-id',
+      playerId: 'target-player-id',
+      levelId: 'test-level-id',
+      role: 'PLAYER',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst
+      .mockResolvedValueOnce(mockUserMember) // User membership check
+      .mockResolvedValueOnce(mockTargetMember); // Target member check
+    prisma.levelMember.update.mockRejectedValue(new Error('Database connection failed'));
+
+    const response = await request(app)
+      .put('/api/levels/test-level-id/members/target-member-id')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ role: 'AUDIENCE' });
+
+    expect(response.status).toBe(500);
+    expect(response.body.error).toBe('Failed to update member role');
+  });
+});
+
+describe('DELETE /api/levels/:id/members/:memberId', () => {
+  let app;
+  let validToken;
+  const mockUser = {
+    id: 'creator-user-id',
+    email: 'creator@example.com',
+    name: 'Creator User'
+  };
+
+  beforeEach(() => {
+    app = createTestApp();
+    validToken = jwt.sign(mockUser, process.env.JWT_SECRET || 'your-default-secret-change-this');
+    jest.clearAllMocks();
+  });
+
+  it('should return 401 when no authorization token is provided', async () => {
+    const response = await request(app)
+      .delete('/api/levels/test-level-id/members/member-id');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Access token is required');
+  });
+
+  it('should return 401 when invalid token is provided', async () => {
+    const response = await request(app)
+      .delete('/api/levels/test-level-id/members/member-id')
+      .set('Authorization', 'Bearer invalid-token');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Invalid token');
+  });
+
+  it('should return 404 when level is not found', async () => {
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(null);
+
+    const response = await request(app)
+      .delete('/api/levels/non-existent-level/members/member-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Level not found');
+  });
+
+  it('should return 403 when user is not the CREATOR', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: 'other-user-id',
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'PLAYER',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .delete('/api/levels/test-level-id/members/member-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Only the level creator can manage members');
+  });
+
+  it('should return 404 when target member is not found', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst
+      .mockResolvedValueOnce(mockUserMember) // User membership check
+      .mockResolvedValueOnce(null); // Target member check
+
+    const response = await request(app)
+      .delete('/api/levels/test-level-id/members/non-existent-member')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Member not found or not active in this level');
+  });
+
+  it('should return 400 when trying to remove CREATOR', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const mockTargetMember = {
+      id: 'target-member-id',
+      playerId: 'target-player-id',
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst
+      .mockResolvedValueOnce(mockUserMember) // User membership check
+      .mockResolvedValueOnce(mockTargetMember); // Target member check
+
+    const response = await request(app)
+      .delete('/api/levels/test-level-id/members/target-member-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Cannot remove the level creator');
+  });
+
+  it('should successfully remove a PLAYER member', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const mockTargetMember = {
+      id: 'target-member-id',
+      playerId: 'target-player-id',
+      levelId: 'test-level-id',
+      role: 'PLAYER',
+      status: 'ACTIVE'
+    };
+
+    const mockUpdatedMember = {
+      ...mockTargetMember,
+      status: 'ELIMINATED'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst
+      .mockResolvedValueOnce(mockUserMember) // User membership check
+      .mockResolvedValueOnce(mockTargetMember); // Target member check
+    prisma.levelMember.update.mockResolvedValue(mockUpdatedMember);
+
+    const response = await request(app)
+      .delete('/api/levels/test-level-id/members/target-member-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe('Member removed successfully');
+
+    expect(prisma.levelMember.update).toHaveBeenCalledWith({
+      where: { id: 'target-member-id' },
+      data: { status: 'ELIMINATED' }
+    });
+  });
+
+  it('should successfully remove an AUDIENCE member', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const mockTargetMember = {
+      id: 'target-member-id',
+      playerId: 'target-player-id',
+      levelId: 'test-level-id',
+      role: 'AUDIENCE',
+      status: 'ACTIVE'
+    };
+
+    const mockUpdatedMember = {
+      ...mockTargetMember,
+      status: 'ELIMINATED'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst
+      .mockResolvedValueOnce(mockUserMember) // User membership check
+      .mockResolvedValueOnce(mockTargetMember); // Target member check
+    prisma.levelMember.update.mockResolvedValue(mockUpdatedMember);
+
+    const response = await request(app)
+      .delete('/api/levels/test-level-id/members/target-member-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe('Member removed successfully');
+
+    expect(prisma.levelMember.update).toHaveBeenCalledWith({
+      where: { id: 'target-member-id' },
+      data: { status: 'ELIMINATED' }
+    });
+  });
+
+  it('should handle database errors gracefully', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      ownerId: mockUser.id,
+      isActive: true
+    };
+
+    const mockUserMember = {
+      id: 'user-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    const mockTargetMember = {
+      id: 'target-member-id',
+      playerId: 'target-player-id',
+      levelId: 'test-level-id',
+      role: 'PLAYER',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst
+      .mockResolvedValueOnce(mockUserMember) // User membership check
+      .mockResolvedValueOnce(mockTargetMember); // Target member check
+    prisma.levelMember.update.mockRejectedValue(new Error('Database connection failed'));
+
+    const response = await request(app)
+      .delete('/api/levels/test-level-id/members/target-member-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(500);
+    expect(response.body.error).toBe('Failed to remove member');
   });
 });
 

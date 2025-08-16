@@ -1,6 +1,6 @@
 // src/routes/levels.route.js
 const express = require('express');
-const { createLevel, getLevels, getLevelDetails, joinLevel } = require('../controllers/levels.controller');
+const { createLevel, getLevels, getLevelDetails, joinLevel, updateMemberRole, removeMember } = require('../controllers/levels.controller');
 const { authenticateToken } = require('../middleware/auth.middleware');
 
 const router = express.Router();
@@ -16,5 +16,11 @@ router.get('/:id', authenticateToken, getLevelDetails);
 
 // POST /api/levels/:id/join - Join level with invite code (requires authentication)
 router.post('/:id/join', authenticateToken, joinLevel);
+
+// PUT /api/levels/:id/members/:memberId - Update member role (requires authentication)
+router.put('/:id/members/:memberId', authenticateToken, updateMemberRole);
+
+// DELETE /api/levels/:id/members/:memberId - Remove member (requires authentication)
+router.delete('/:id/members/:memberId', authenticateToken, removeMember);
 
 module.exports = router;

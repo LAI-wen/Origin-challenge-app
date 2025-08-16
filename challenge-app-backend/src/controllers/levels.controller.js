@@ -462,9 +462,159 @@ const joinLevel = async (req, res) => {
   }
 };
 
+/**
+ * Update member role in a level
+ * PUT /api/levels/:id/members/:memberId
+ */
+const updateMemberRole = async (req, res) => {
+  try {
+    const { id: levelId, memberId } = req.params;
+    const { role } = req.body;
+    const userId = req.user.id;
+
+    // Validate required fields
+    if (!role || role.trim() === '') {
+      return res.status(400).json({ error: 'Role is required' });
+    }
+
+    // Validate role value
+    if (!['PLAYER', 'AUDIENCE'].includes(role)) {
+      return res.status(400).json({ error: 'Role must be either PLAYER or AUDIENCE' });
+    }
+
+    // Find the level
+    const level = await prisma.level.findUnique({
+      where: { id: levelId }
+    });
+
+    if (!level) {
+      return res.status(404).json({ error: 'Level not found' });
+    }
+
+    // Check if user is a member and get their role
+    const userMember = await prisma.levelMember.findFirst({
+      where: {
+        playerId: userId,
+        levelId: levelId,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!userMember || userMember.role !== 'CREATOR') {
+      return res.status(403).json({ error: 'Only the level creator can manage members' });
+    }
+
+    // Find the target member
+    const targetMember = await prisma.levelMember.findFirst({
+      where: {
+        id: memberId,
+        levelId: levelId,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!targetMember) {
+      return res.status(404).json({ error: 'Member not found or not active in this level' });
+    }
+
+    // Cannot modify CREATOR role
+    if (targetMember.role === 'CREATOR') {
+      return res.status(400).json({ error: 'Cannot modify the creator role' });
+    }
+
+    // Update the member role
+    const updatedMember = await prisma.levelMember.update({
+      where: { id: memberId },
+      data: { role }
+    });
+
+    res.json({
+      success: true,
+      message: 'Member role updated successfully',
+      member: {
+        id: updatedMember.id,
+        playerId: updatedMember.playerId,
+        role: updatedMember.role,
+        status: updatedMember.status,
+        joinedAt: updatedMember.joinedAt
+      }
+    });
+
+  } catch (error) {
+    return handleDatabaseError(error, 'update member role', res);
+  }
+};
+
+/**
+ * Remove a member from a level
+ * DELETE /api/levels/:id/members/:memberId
+ */
+const removeMember = async (req, res) => {
+  try {
+    const { id: levelId, memberId } = req.params;
+    const userId = req.user.id;
+
+    // Find the level
+    const level = await prisma.level.findUnique({
+      where: { id: levelId }
+    });
+
+    if (!level) {
+      return res.status(404).json({ error: 'Level not found' });
+    }
+
+    // Check if user is a member and get their role
+    const userMember = await prisma.levelMember.findFirst({
+      where: {
+        playerId: userId,
+        levelId: levelId,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!userMember || userMember.role !== 'CREATOR') {
+      return res.status(403).json({ error: 'Only the level creator can manage members' });
+    }
+
+    // Find the target member
+    const targetMember = await prisma.levelMember.findFirst({
+      where: {
+        id: memberId,
+        levelId: levelId,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!targetMember) {
+      return res.status(404).json({ error: 'Member not found or not active in this level' });
+    }
+
+    // Cannot remove CREATOR
+    if (targetMember.role === 'CREATOR') {
+      return res.status(400).json({ error: 'Cannot remove the level creator' });
+    }
+
+    // Update member status to ELIMINATED (soft delete)
+    await prisma.levelMember.update({
+      where: { id: memberId },
+      data: { status: 'ELIMINATED' }
+    });
+
+    res.json({
+      success: true,
+      message: 'Member removed successfully'
+    });
+
+  } catch (error) {
+    return handleDatabaseError(error, 'remove member', res);
+  }
+};
+
 module.exports = {
   createLevel,
   getLevels,
   getLevelDetails,
-  joinLevel
+  joinLevel,
+  updateMemberRole,
+  removeMember
 };
