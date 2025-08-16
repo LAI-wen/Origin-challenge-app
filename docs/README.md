@@ -19,6 +19,9 @@
 | 文件 | 功能 | 說明 |
 |---|---|---|
 | **2025-08-16-phase1-completion.md** | Phase 1 完成記錄 | 認證系統開發完整日誌 |
+| **2025-08-16-database-v3-migration.md** | V3.0 資料庫遷移 | 資料庫架構升級記錄 |
+| **2025-08-16-v3-migration-completed.md** | V3.0 遷移完成 | 遷移驗證和測試記錄 |
+| **2025-08-16-stage-2-1-2-completion.md** | Stage 2.1.2 完成 | 關卡管理系統實施完整記錄 |
 
 ## 🚀 **快速導航**
 
@@ -26,12 +29,16 @@
 - **設定開發環境** → [1-configuration/DEVELOPMENT_GUIDE.md](./1-configuration/DEVELOPMENT_GUIDE.md)
 - **配置 Google OAuth** → [1-configuration/OAUTH_SETUP.md](./1-configuration/OAUTH_SETUP.md)
 - **解決 OAuth 問題** → [2-troubleshooting/OAUTH_TROUBLESHOOTING.md](./2-troubleshooting/OAUTH_TROUBLESHOOTING.md)
+- **查看 API 文檔** → [API_REFERENCE.md](./API_REFERENCE.md)
 - **查看開發進度** → [3-development-log/](./3-development-log/)
+- **了解實施進度** → [../IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
 
 ### **📋 專案主要文檔**
 - **專案總覽** → [../README.md](../README.md) 
 - **產品規格** → [../SPEC.md](../SPEC.md)
+- **實施計劃** → [../IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
 - **開發指導** → [../CLAUDE.md](../CLAUDE.md)
+- **API 參考** → [API_REFERENCE.md](./API_REFERENCE.md)
 
 ## 🎯 **文檔維護規則**
 
