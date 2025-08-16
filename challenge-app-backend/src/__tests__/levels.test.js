@@ -12,9 +12,11 @@ jest.mock('../models/prisma', () => ({
   level: {
     create: jest.fn(),
     findUnique: jest.fn(),
+    findMany: jest.fn(),
   },
   levelMember: {
     create: jest.fn(),
+    findMany: jest.fn(),
   },
 }));
 
@@ -266,5 +268,242 @@ describe('POST /api/levels', () => {
 
     expect(response.status).toBe(500);
     expect(response.body.error).toBe('Failed to create level');
+  });
+});
+
+describe('GET /api/levels', () => {
+  let app;
+  let validToken;
+  const mockUser = {
+    id: 'test-user-id',
+    email: 'test@example.com',
+    name: 'Test User'
+  };
+
+  beforeEach(() => {
+    app = createTestApp();
+    validToken = jwt.sign(mockUser, process.env.JWT_SECRET || 'your-default-secret-change-this');
+    jest.clearAllMocks();
+  });
+
+  it('should return 401 when no authorization token is provided', async () => {
+    const response = await request(app)
+      .get('/api/levels');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Access token is required');
+  });
+
+  it('should return 401 when invalid token is provided', async () => {
+    const response = await request(app)
+      .get('/api/levels')
+      .set('Authorization', 'Bearer invalid-token');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Invalid token');
+  });
+
+  it('should return empty array when user has no levels', async () => {
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.levelMember.findMany.mockResolvedValue([]);
+
+    const response = await request(app)
+      .get('/api/levels')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.levels).toEqual([]);
+    expect(response.body.total).toBe(0);
+  });
+
+  it('should return user levels with role and member count', async () => {
+    const mockLevelMembers = [
+      {
+        id: 'member-1',
+        playerId: mockUser.id,
+        levelId: 'level-1',
+        role: 'CREATOR',
+        status: 'ACTIVE',
+        level: {
+          id: 'level-1',
+          name: 'Morning Workout',
+          description: 'Daily morning exercise routine',
+          inviteCode: 'ABCD1234',
+          ownerId: mockUser.id,
+          isActive: true,
+          rule: {
+            startTime: '06:00',
+            endTime: '22:00',
+            maxMissedDays: 3
+          },
+          settings: {
+            checkinContentVisibility: 'public'
+          },
+          startDate: new Date('2025-08-20T00:00:00Z'),
+          endDate: new Date('2025-09-20T00:00:00Z'),
+          createdAt: new Date('2025-08-16T10:00:00Z'),
+          updatedAt: new Date('2025-08-16T10:00:00Z'),
+          _count: {
+            levelMembers: 5
+          }
+        }
+      },
+      {
+        id: 'member-2',
+        playerId: mockUser.id,
+        levelId: 'level-2',
+        role: 'PLAYER',
+        status: 'ACTIVE',
+        level: {
+          id: 'level-2',
+          name: 'Reading Challenge',
+          description: 'Read 30 minutes daily',
+          inviteCode: 'EFGH5678',
+          ownerId: 'other-user-id',
+          isActive: true,
+          rule: {
+            startTime: '05:00',
+            endTime: '23:00',
+            maxMissedDays: 2
+          },
+          settings: {
+            checkinContentVisibility: 'public'
+          },
+          startDate: new Date('2025-08-15T00:00:00Z'),
+          endDate: null,
+          createdAt: new Date('2025-08-15T09:00:00Z'),
+          updatedAt: new Date('2025-08-15T09:00:00Z'),
+          _count: {
+            levelMembers: 3
+          }
+        }
+      }
+    ];
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.levelMember.findMany.mockResolvedValue(mockLevelMembers);
+
+    const response = await request(app)
+      .get('/api/levels')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.total).toBe(2);
+    expect(response.body.levels).toHaveLength(2);
+
+    // Check first level (user is creator)
+    const creatorLevel = response.body.levels.find(l => l.id === 'level-1');
+    expect(creatorLevel).toMatchObject({
+      id: 'level-1',
+      name: 'Morning Workout',
+      description: 'Daily morning exercise routine',
+      userRole: 'CREATOR',
+      memberCount: 5,
+      isOwner: true,
+      isActive: true
+    });
+
+    // Check second level (user is player)
+    const playerLevel = response.body.levels.find(l => l.id === 'level-2');
+    expect(playerLevel).toMatchObject({
+      id: 'level-2',
+      name: 'Reading Challenge',
+      description: 'Read 30 minutes daily',
+      userRole: 'PLAYER',
+      memberCount: 3,
+      isOwner: false,
+      isActive: true
+    });
+
+    // Verify database query
+    expect(prisma.levelMember.findMany).toHaveBeenCalledWith({
+      where: {
+        playerId: mockUser.id,
+        status: 'ACTIVE'
+      },
+      include: {
+        level: {
+          include: {
+            _count: {
+              select: {
+                levelMembers: {
+                  where: {
+                    status: 'ACTIVE'
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        level: {
+          createdAt: 'desc'
+        }
+      }
+    });
+  });
+
+  it('should handle database errors gracefully', async () => {
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.levelMember.findMany.mockRejectedValue(new Error('Database connection failed'));
+
+    const response = await request(app)
+      .get('/api/levels')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(500);
+    expect(response.body.error).toBe('Failed to fetch levels');
+  });
+
+  it('should filter only active levels and active members', async () => {
+    const mockLevelMembers = [
+      {
+        id: 'member-1',
+        playerId: mockUser.id,
+        levelId: 'level-1',
+        role: 'CREATOR',
+        status: 'ACTIVE',
+        level: {
+          id: 'level-1',
+          name: 'Active Level',
+          description: 'This level is active',
+          inviteCode: 'ABCD1234',
+          ownerId: mockUser.id,
+          isActive: true,
+          rule: {},
+          settings: {},
+          startDate: new Date(),
+          endDate: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          _count: {
+            levelMembers: 2
+          }
+        }
+      }
+    ];
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.levelMember.findMany.mockResolvedValue(mockLevelMembers);
+
+    const response = await request(app)
+      .get('/api/levels')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.levels).toHaveLength(1);
+    
+    // Verify that the query filters for active status
+    expect(prisma.levelMember.findMany).toHaveBeenCalledWith({
+      where: {
+        playerId: mockUser.id,
+        status: 'ACTIVE'
+      },
+      include: expect.any(Object),
+      orderBy: expect.any(Object)
+    });
   });
 });

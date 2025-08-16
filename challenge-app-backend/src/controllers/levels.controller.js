@@ -103,6 +103,81 @@ const createLevel = async (req, res) => {
   }
 };
 
+/**
+ * Get user's levels
+ * GET /api/levels
+ */
+const getLevels = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Find all level memberships for the user where status is ACTIVE
+    const levelMembers = await prisma.levelMember.findMany({
+      where: {
+        playerId: userId,
+        status: 'ACTIVE'
+      },
+      include: {
+        level: {
+          include: {
+            _count: {
+              select: {
+                levelMembers: {
+                  where: {
+                    status: 'ACTIVE'
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        level: {
+          createdAt: 'desc'
+        }
+      }
+    });
+
+    // Transform the data to include user role and membership info
+    const levels = levelMembers.map(member => {
+      const { level } = member;
+      return {
+        id: level.id,
+        name: level.name,
+        description: level.description,
+        inviteCode: level.inviteCode,
+        isActive: level.isActive,
+        rule: level.rule,
+        settings: level.settings,
+        startDate: level.startDate,
+        endDate: level.endDate,
+        createdAt: level.createdAt,
+        updatedAt: level.updatedAt,
+        // User-specific information
+        userRole: member.role,
+        memberCount: level._count.levelMembers,
+        isOwner: level.ownerId === userId
+      };
+    });
+
+    res.json({
+      success: true,
+      levels,
+      total: levels.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching levels:', error);
+    
+    res.status(500).json({ 
+      error: 'Failed to fetch levels',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Please try again'
+    });
+  }
+};
+
 module.exports = {
-  createLevel
+  createLevel,
+  getLevels
 };
