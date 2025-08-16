@@ -14,14 +14,9 @@ function AppContent() {
 
   const handleLogout = async () => {
     try {
-      // Check if user is signed in before trying to sign out
-      const isSignedIn = await GoogleSignin.isSignedIn();
-      if (isSignedIn) {
-        await GoogleSignin.signOut();
-        console.log('🚪 Google Sign-In signed out');
-      } else {
-        console.log('🚪 User not signed in to Google, skipping Google sign out');
-      }
+      // Try to sign out from Google directly without checking isSignedIn
+      await GoogleSignin.signOut();
+      console.log('🚪 Google Sign-In signed out');
       
       // Clear local auth state
       await logout();

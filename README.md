@@ -32,15 +32,46 @@ This is a monorepo containing both frontend and backend:
 - **Authentication**: @react-native-google-signin/google-signin
 - **Internationalization**: react-i18next with automatic language detection
 
-## 🚀 Quick Start
+## 🚀 Installation & Setup
 
 ### Prerequisites
-- Node.js (v18+)
-- Docker (for PostgreSQL)
-- Android Studio (for emulator)
-- Google Cloud Console OAuth credentials
+- **Node.js** (v18 or higher) - [Download](https://nodejs.org/)
+- **Docker** (for PostgreSQL database) - [Download](https://www.docker.com/)
+- **Android Studio** (for Android emulator) - [Download](https://developer.android.com/studio)
+- **Google Cloud Console** OAuth credentials - [Setup Guide](./OAUTH_SETUP.md)
 
-### 1. Setup Database
+### Step 1: Clone and Setup Project
+```bash
+# Clone the repository
+git clone <repository-url>
+cd Origin-challenge-app
+
+# Install dependencies for both frontend and backend
+cd challenge-app-backend && npm install && cd ..
+cd challenge-app-frontend && npm install && cd ..
+```
+
+### Step 2: Configure Environment Variables
+Create `.env` files in both directories:
+
+**Backend Environment (`challenge-app-backend/.env`):**
+```bash
+DATABASE_URL="postgresql://challengeapp:challengeapp_password@localhost:5432/challengeapp"
+GOOGLE_CLIENT_ID="your-web-client-id-from-google-cloud-console"
+JWT_SECRET="your-secure-random-jwt-secret"
+PORT=3000
+```
+
+**Frontend Environment (`challenge-app-frontend/.env`):**
+```bash
+# For Android emulator (uses 10.0.2.2 to access host)
+EXPO_PUBLIC_API_URL=http://10.0.2.2:3000
+
+# For physical device or web (use your computer's IP)
+# EXPO_PUBLIC_API_URL=http://192.168.1.100:3000
+```
+
+### Step 3: Start Database
 ```bash
 # Start PostgreSQL container
 docker run --name challenge-app-postgres \
@@ -48,38 +79,104 @@ docker run --name challenge-app-postgres \
   -e POSTGRES_DB=challengeapp \
   -e POSTGRES_USER=challengeapp \
   -p 5432:5432 -d postgres:15
+
+# Verify database is running
+docker ps | grep challenge-app-postgres
 ```
 
-### 2. Setup Backend
+### Step 4: Initialize Backend
 ```bash
 cd challenge-app-backend
-npm install
-npx prisma migrate deploy
-npx prisma generate
-npm start  # Server runs on http://localhost:3000
 
-# Optional: Database management UI
-npx prisma studio  # Opens http://localhost:5556
+# Generate Prisma client and run migrations
+npx prisma generate
+npx prisma migrate deploy
+
+# Start backend server
+npm start
+# ✅ Server should start on http://localhost:3000
+
+# Optional: Start database management UI (in new terminal)
+npx prisma studio
+# ✅ Prisma Studio opens at http://localhost:5556
 ```
 
-### 3. Setup Frontend
+### Step 5: Start Frontend
+
+#### For Android Development:
 ```bash
 cd challenge-app-frontend
-npm install
 
-# For Android testing
+# Start Android emulator first (or connect physical device)
+# Then run the app
 npx expo run:android
 
-# For web development
-npx expo start --web
+# ✅ App builds and installs on Android device/emulator
 ```
 
-### 4. Test Google Authentication
-1. Start both backend and frontend services
-2. Open Android emulator
-3. Click "Sign in with Google" button
-4. Complete OAuth flow
-5. Check Prisma Studio for user record creation
+#### For Web Development:
+```bash
+cd challenge-app-frontend
+
+# Start web version
+npx expo start --web
+
+# ✅ App opens in browser at http://localhost:8081
+```
+
+### Step 6: Test Authentication Flow
+
+1. **Verify Services Running:**
+   - ✅ Backend: http://localhost:3000 (should show API status)
+   - ✅ Database: PostgreSQL container running
+   - ✅ Frontend: Android app or web browser
+
+2. **Test Google Login:**
+   - Click "Sign in with Google" button
+   - Complete OAuth flow in browser/Google app
+   - Verify successful login and user welcome screen
+   - Test logout functionality
+
+3. **Verify Database Records:**
+   - Open Prisma Studio: http://localhost:5556
+   - Check `User` table for new user records
+   - Verify Google profile data is correctly stored
+
+### 🔧 Development Commands
+
+**Backend:**
+```bash
+cd challenge-app-backend
+npm start              # Start development server
+npm run lint          # Run ESLint
+npm run format        # Run Prettier
+npx prisma studio     # Database management UI
+npx prisma migrate dev # Create new migration
+```
+
+**Frontend:**
+```bash
+cd challenge-app-frontend
+npx expo start         # Start Expo dev server
+npx expo start --web   # Start web version
+npx expo run:android   # Build and run on Android
+npm run lint          # Run ESLint
+npm run format        # Run Prettier
+```
+
+### 🐛 Troubleshooting
+
+**Common Issues:**
+- **Port conflicts:** Kill processes on ports 3000, 5556, 8081
+- **Database connection:** Ensure Docker container is running
+- **Android build errors:** Clear Metro cache: `npx expo start --clear`
+- **Google OAuth errors:** Check [OAUTH_TROUBLESHOOTING.md](./OAUTH_TROUBLESHOOTING.md)
+
+**Development Tips:**
+- Use `docker-compose up` for easier database management
+- Enable hot reload for faster development
+- Check console logs for authentication debugging
+- Use Prisma Studio to monitor database changes in real-time
 
 ## 🎯 Current Features (Phase 1)
 
