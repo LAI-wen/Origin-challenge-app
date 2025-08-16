@@ -711,6 +711,201 @@ const validateSettings = (settings) => {
 };
 
 /**
+ * Helper function to check if a level has expired based on endDate
+ * @param {Object} level - Level object with endDate property
+ * @returns {boolean} Whether the level has expired
+ */
+const isLevelExpired = (level) => {
+  if (!level.endDate) return false;
+  return new Date() > new Date(level.endDate);
+};
+
+/**
+ * Helper function to automatically update expired levels status
+ * This function checks for levels that have passed their endDate and updates them to inactive
+ * @param {string} userId - Optional user ID to filter levels by owner
+ * @returns {Object} Result with updated count and any errors
+ */
+const updateExpiredLevels = async (userId = null) => {
+  try {
+    const whereClause = {
+      isActive: true,
+      endDate: {
+        lt: new Date()
+      }
+    };
+
+    // Optionally filter by owner
+    if (userId) {
+      whereClause.ownerId = userId;
+    }
+
+    // Find all expired active levels
+    const expiredLevels = await prisma.level.findMany({
+      where: whereClause,
+      select: { id: true, name: true, ownerId: true, endDate: true }
+    });
+
+    if (expiredLevels.length === 0) {
+      return { 
+        success: true, 
+        updatedCount: 0, 
+        message: 'No expired levels found' 
+      };
+    }
+
+    // Update all expired levels to inactive
+    const updateResult = await prisma.level.updateMany({
+      where: whereClause,
+      data: { isActive: false }
+    });
+
+    return {
+      success: true,
+      updatedCount: updateResult.count,
+      expiredLevels: expiredLevels.map(level => ({
+        id: level.id,
+        name: level.name,
+        ownerId: level.ownerId,
+        endDate: level.endDate
+      })),
+      message: `Successfully marked ${updateResult.count} expired levels as inactive`
+    };
+
+  } catch (error) {
+    console.error('Error updating expired levels:', error);
+    return {
+      success: false,
+      error: error.message,
+      message: 'Failed to update expired levels'
+    };
+  }
+};
+
+/**
+ * Helper function to get level status information
+ * @param {string} levelId - Level ID to check
+ * @returns {Object} Level status information including expiration status
+ */
+const getLevelStatusInfo = async (levelId) => {
+  try {
+    const level = await prisma.level.findUnique({
+      where: { id: levelId },
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        startDate: true,
+        endDate: true,
+        ownerId: true
+      }
+    });
+
+    if (!level) {
+      return { 
+        success: false, 
+        error: 'Level not found' 
+      };
+    }
+
+    const now = new Date();
+    const isExpired = isLevelExpired(level);
+    const hasStarted = level.startDate ? now >= new Date(level.startDate) : true;
+    const willExpire = level.endDate ? new Date(level.endDate) > now : false;
+
+    return {
+      success: true,
+      level: {
+        id: level.id,
+        name: level.name,
+        isActive: level.isActive,
+        startDate: level.startDate,
+        endDate: level.endDate,
+        ownerId: level.ownerId
+      },
+      status: {
+        hasStarted,
+        isExpired,
+        willExpire,
+        shouldBeActive: hasStarted && !isExpired,
+        statusMismatch: level.isActive !== (hasStarted && !isExpired)
+      }
+    };
+
+  } catch (error) {
+    console.error('Error getting level status info:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Update level status (active/completed)
+ * PUT /api/levels/:id/status
+ */
+const updateLevelStatus = async (req, res) => {
+  try {
+    const { id: levelId } = req.params;
+    const { isActive } = req.body;
+    const userId = req.user.id;
+
+    // Validate required fields
+    if (isActive === undefined || isActive === null) {
+      return res.status(400).json({ error: 'isActive field is required' });
+    }
+
+    // Validate isActive field must be boolean
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({ error: 'isActive must be a boolean value' });
+    }
+
+    // Find the level
+    const level = await prisma.level.findUnique({
+      where: { id: levelId }
+    });
+
+    if (!level) {
+      return res.status(404).json({ error: 'Level not found' });
+    }
+
+    // Check if user is a member and get their role
+    const userMember = await prisma.levelMember.findFirst({
+      where: {
+        playerId: userId,
+        levelId: levelId,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!userMember || userMember.role !== 'CREATOR') {
+      return res.status(403).json({ error: 'Only the level creator can manage level status' });
+    }
+
+    // Check if status change is necessary (avoid unnecessary updates)
+    if (level.isActive === isActive) {
+      return res.status(409).json({ error: 'Level is already in the requested status' });
+    }
+
+    // Update the level status
+    const updatedLevel = await prisma.level.update({
+      where: { id: levelId },
+      data: { isActive }
+    });
+
+    res.json({
+      success: true,
+      message: 'Level status updated successfully',
+      level: formatLevelResponse(updatedLevel, userMember.role, level.ownerId === userId)
+    });
+
+  } catch (error) {
+    return handleDatabaseError(error, 'update level status', res);
+  }
+};
+
+/**
  * Update level settings and privacy controls
  * PUT /api/levels/:id
  */
@@ -814,5 +1009,10 @@ module.exports = {
   joinLevel,
   updateMemberRole,
   removeMember,
-  updateLevelSettings
+  updateLevelSettings,
+  updateLevelStatus,
+  // Helper functions for automatic status management
+  isLevelExpired,
+  updateExpiredLevels,
+  getLevelStatusInfo
 };
