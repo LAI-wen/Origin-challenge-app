@@ -810,3 +810,527 @@ describe('POST /api/levels/:id/join', () => {
     });
   });
 });
+
+describe('GET /api/levels/:id', () => {
+  let app;
+  let validToken;
+  const mockUser = {
+    id: 'test-user-id',
+    email: 'test@example.com',
+    name: 'Test User'
+  };
+
+  beforeEach(() => {
+    app = createTestApp();
+    validToken = jwt.sign(mockUser, process.env.JWT_SECRET || 'your-default-secret-change-this');
+    jest.clearAllMocks();
+  });
+
+  it('should return 401 when no authorization token is provided', async () => {
+    const response = await request(app)
+      .get('/api/levels/test-level-id');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Access token is required');
+  });
+
+  it('should return 401 when invalid token is provided', async () => {
+    const response = await request(app)
+      .get('/api/levels/test-level-id')
+      .set('Authorization', 'Bearer invalid-token');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Invalid token');
+  });
+
+  it('should return 404 when level is not found', async () => {
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(null);
+
+    const response = await request(app)
+      .get('/api/levels/non-existent-level')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Level not found');
+  });
+
+  it('should return 403 when user is not a member of the level', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'A test level',
+      inviteCode: 'ABCD1234',
+      ownerId: 'other-user-id',
+      isActive: true,
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'public'
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(null); // User is not a member
+
+    const response = await request(app)
+      .get('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Access denied: You are not a member of this level');
+  });
+
+  it('should return 403 when user membership is not active', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      ownerId: 'other-user-id',
+      isActive: true
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    // Mock findFirst to return null since user only has ELIMINATED membership (not ACTIVE)
+    prisma.levelMember.findFirst.mockResolvedValue(null);
+
+    const response = await request(app)
+      .get('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Access denied: You are not a member of this level');
+  });
+
+  it('should return level details for CREATOR with full visibility', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'A test level',
+      inviteCode: 'ABCD1234',
+      ownerId: mockUser.id,
+      isActive: true,
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'public'
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date('2025-08-16T10:00:00Z'),
+      updatedAt: new Date('2025-08-16T10:00:00Z'),
+      levelMembers: [
+        {
+          id: 'member-1',
+          playerId: mockUser.id,
+          role: 'CREATOR',
+          status: 'ACTIVE',
+          missedDays: 0,
+          joinedAt: new Date('2025-08-16T10:00:00Z'),
+          player: {
+            id: mockUser.id,
+            name: mockUser.name,
+            email: mockUser.email,
+            avatarUrl: null
+          }
+        },
+        {
+          id: 'member-2',
+          playerId: 'other-player-id',
+          role: 'PLAYER',
+          status: 'ACTIVE',
+          missedDays: 1,
+          joinedAt: new Date('2025-08-17T09:00:00Z'),
+          player: {
+            id: 'other-player-id',
+            name: 'Other Player',
+            email: 'other@example.com',
+            avatarUrl: null
+          }
+        }
+      ]
+    };
+
+    const mockUserMember = {
+      id: 'member-1',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .get('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.level).toMatchObject({
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'A test level',
+      isActive: true,
+      userRole: 'CREATOR',
+      isOwner: true
+    });
+
+    // CREATOR should see invite code
+    expect(response.body.level.inviteCode).toBe('ABCD1234');
+
+    // CREATOR should see full member list with all details
+    expect(response.body.level.members).toHaveLength(2);
+    expect(response.body.level.members[0]).toMatchObject({
+      id: 'member-1',
+      role: 'CREATOR',
+      status: 'ACTIVE',
+      missedDays: 0,
+      player: {
+        id: mockUser.id,
+        name: mockUser.name,
+        email: mockUser.email
+      }
+    });
+  });
+
+  it('should return level details for PLAYER with limited visibility', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'A test level',
+      inviteCode: 'ABCD1234',
+      ownerId: 'creator-user-id',
+      isActive: true,
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'members_only'
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date('2025-08-16T10:00:00Z'),
+      updatedAt: new Date('2025-08-16T10:00:00Z'),
+      levelMembers: [
+        {
+          id: 'member-1',
+          playerId: 'creator-user-id',
+          role: 'CREATOR',
+          status: 'ACTIVE',
+          missedDays: 0,
+          joinedAt: new Date('2025-08-16T10:00:00Z'),
+          player: {
+            id: 'creator-user-id',
+            name: 'Creator User',
+            email: 'creator@example.com',
+            avatarUrl: null
+          }
+        },
+        {
+          id: 'member-2',
+          playerId: mockUser.id,
+          role: 'PLAYER',
+          status: 'ACTIVE',
+          missedDays: 1,
+          joinedAt: new Date('2025-08-17T09:00:00Z'),
+          player: {
+            id: mockUser.id,
+            name: mockUser.name,
+            email: mockUser.email,
+            avatarUrl: null
+          }
+        }
+      ]
+    };
+
+    const mockUserMember = {
+      id: 'member-2',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'PLAYER',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .get('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.level).toMatchObject({
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'A test level',
+      isActive: true,
+      userRole: 'PLAYER',
+      isOwner: false
+    });
+
+    // PLAYER should NOT see invite code
+    expect(response.body.level.inviteCode).toBeUndefined();
+
+    // PLAYER should see member list but with limited details
+    expect(response.body.level.members).toHaveLength(2);
+    const creatorMember = response.body.level.members.find(m => m.role === 'CREATOR');
+    expect(creatorMember.player.email).toBeUndefined(); // Email should be filtered out for PLAYER
+  });
+
+  it('should return level details for AUDIENCE with minimal visibility', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'A test level',
+      inviteCode: 'ABCD1234',
+      ownerId: 'creator-user-id',
+      isActive: true,
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'public'
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date('2025-08-16T10:00:00Z'),
+      updatedAt: new Date('2025-08-16T10:00:00Z'),
+      levelMembers: [
+        {
+          id: 'member-1',
+          playerId: 'creator-user-id',
+          role: 'CREATOR',
+          status: 'ACTIVE',
+          missedDays: 0,
+          joinedAt: new Date('2025-08-16T10:00:00Z'),
+          player: {
+            id: 'creator-user-id',
+            name: 'Creator User',
+            email: 'creator@example.com',
+            avatarUrl: null
+          }
+        },
+        {
+          id: 'member-2',
+          playerId: mockUser.id,
+          role: 'AUDIENCE',
+          status: 'ACTIVE',
+          missedDays: 0,
+          joinedAt: new Date('2025-08-17T09:00:00Z'),
+          player: {
+            id: mockUser.id,
+            name: mockUser.name,
+            email: mockUser.email,
+            avatarUrl: null
+          }
+        }
+      ]
+    };
+
+    const mockUserMember = {
+      id: 'member-2',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'AUDIENCE',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .get('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.level).toMatchObject({
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'A test level',
+      isActive: true,
+      userRole: 'AUDIENCE',
+      isOwner: false
+    });
+
+    // AUDIENCE should NOT see invite code
+    expect(response.body.level.inviteCode).toBeUndefined();
+
+    // AUDIENCE should see member list but with minimal details
+    expect(response.body.level.members).toHaveLength(2);
+    const creatorMember = response.body.level.members.find(m => m.role === 'CREATOR');
+    expect(creatorMember.player.email).toBeUndefined();
+    expect(creatorMember.missedDays).toBeUndefined(); // Should not see missed days
+  });
+
+  it('should respect privacy settings - private content for non-public visibility', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'A test level',
+      inviteCode: 'ABCD1234',
+      ownerId: 'creator-user-id',
+      isActive: true,
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'private' // Private visibility
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date('2025-08-16T10:00:00Z'),
+      updatedAt: new Date('2025-08-16T10:00:00Z'),
+      levelMembers: [
+        {
+          id: 'member-1',
+          playerId: 'creator-user-id',
+          role: 'CREATOR',
+          status: 'ACTIVE',
+          missedDays: 0,
+          joinedAt: new Date('2025-08-16T10:00:00Z'),
+          player: {
+            id: 'creator-user-id',
+            name: 'Creator User',
+            email: 'creator@example.com',
+            avatarUrl: null
+          }
+        },
+        {
+          id: 'member-2',
+          playerId: mockUser.id,
+          role: 'PLAYER',
+          status: 'ACTIVE',
+          missedDays: 1,
+          joinedAt: new Date('2025-08-17T09:00:00Z'),
+          player: {
+            id: mockUser.id,
+            name: mockUser.name,
+            email: mockUser.email,
+            avatarUrl: null
+          }
+        }
+      ]
+    };
+
+    const mockUserMember = {
+      id: 'member-2',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'PLAYER',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .get('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.level.settings.checkinContentVisibility).toBe('private');
+    
+    // With private visibility, even PLAYER role should have limited access to member details
+    const members = response.body.level.members;
+    expect(members).toHaveLength(2);
+    
+    // Should still show basic member info but with privacy considerations
+    const otherMember = members.find(m => m.playerId !== mockUser.id);
+    expect(otherMember.player.email).toBeUndefined();
+  });
+
+  it('should handle database errors gracefully', async () => {
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockRejectedValue(new Error('Database connection failed'));
+
+    const response = await request(app)
+      .get('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(500);
+    expect(response.body.error).toBe('Failed to fetch level details');
+  });
+
+  it('should filter out eliminated members from member list', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      ownerId: mockUser.id,
+      isActive: true,
+      rule: { startTime: '06:00', endTime: '22:00', maxMissedDays: 3 },
+      settings: { checkinContentVisibility: 'public' },
+      levelMembers: [
+        {
+          id: 'member-1',
+          playerId: mockUser.id,
+          role: 'CREATOR',
+          status: 'ACTIVE',
+          missedDays: 0,
+          player: { id: mockUser.id, name: mockUser.name, email: mockUser.email }
+        },
+        {
+          id: 'member-2',
+          playerId: 'player-2',
+          role: 'PLAYER',
+          status: 'ELIMINATED', // This member should be filtered out
+          missedDays: 5,
+          player: { id: 'player-2', name: 'Eliminated Player', email: 'eliminated@example.com' }
+        },
+        {
+          id: 'member-3',
+          playerId: 'player-3',
+          role: 'PLAYER',
+          status: 'ACTIVE',
+          missedDays: 1,
+          player: { id: 'player-3', name: 'Active Player', email: 'active@example.com' }
+        }
+      ]
+    };
+
+    const mockUserMember = {
+      id: 'member-1',
+      playerId: mockUser.id,
+      role: 'CREATOR',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockUserMember);
+
+    const response = await request(app)
+      .get('/api/levels/test-level-id')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.level.members).toHaveLength(2); // Should only show ACTIVE members
+    
+    const memberStatuses = response.body.level.members.map(m => m.status);
+    expect(memberStatuses).toEqual(['ACTIVE', 'ACTIVE']);
+  });
+});

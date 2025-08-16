@@ -191,6 +191,192 @@ const getLevels = async (req, res) => {
 };
 
 /**
+ * Helper function to create base member data structure
+ * @param {Object} member - The member object from database
+ * @returns {Object} Base member data with basic information
+ */
+const createBaseMemberData = (member) => ({
+  id: member.id,
+  playerId: member.playerId,
+  role: member.role,
+  status: member.status,
+  joinedAt: member.joinedAt,
+  player: {
+    id: member.player.id,
+    name: member.player.name,
+    avatarUrl: member.player.avatarUrl
+  }
+});
+
+/**
+ * Helper function to determine if email should be visible based on role and privacy settings
+ * @param {Object} member - The member object being evaluated
+ * @param {string} userRole - Current user's role (CREATOR, PLAYER, AUDIENCE)
+ * @param {string} checkinContentVisibility - Level's visibility setting (public, members_only, private)
+ * @param {string} currentUserId - Current user's ID
+ * @returns {boolean} Whether email should be visible
+ */
+const shouldShowEmail = (member, userRole, checkinContentVisibility, currentUserId) => {
+  // Current user always sees their own email
+  if (member.playerId === currentUserId) {
+    return true;
+  }
+  
+  // CREATOR sees all emails
+  if (userRole === 'CREATOR') {
+    return true;
+  }
+  
+  // PLAYER sees emails only if visibility is public
+  if (userRole === 'PLAYER' && checkinContentVisibility === 'public') {
+    return true;
+  }
+  
+  // AUDIENCE never sees other users' emails
+  return false;
+};
+
+/**
+ * Helper function to determine if missed days should be visible based on role
+ * @param {string} userRole - Current user's role (CREATOR, PLAYER, AUDIENCE)
+ * @returns {boolean} Whether missed days should be visible
+ */
+const shouldShowMissedDays = (userRole) => {
+  // CREATOR and PLAYER can see missed days, AUDIENCE cannot
+  return userRole === 'CREATOR' || userRole === 'PLAYER';
+};
+
+/**
+ * Helper function to filter member data based on user role and privacy settings
+ * @param {Object} member - The member object to filter
+ * @param {string} userRole - Current user's role (CREATOR, PLAYER, AUDIENCE)
+ * @param {string} checkinContentVisibility - Level's visibility setting
+ * @param {string} currentUserId - Current user's ID
+ * @returns {Object} Filtered member data based on permissions
+ */
+const filterMemberData = (member, userRole, checkinContentVisibility, currentUserId) => {
+  const baseData = createBaseMemberData(member);
+
+  // Add email if visible
+  if (shouldShowEmail(member, userRole, checkinContentVisibility, currentUserId)) {
+    baseData.player.email = member.player.email;
+  }
+
+  // Add missed days if visible
+  if (shouldShowMissedDays(userRole)) {
+    baseData.missedDays = member.missedDays;
+  }
+
+  return baseData;
+};
+
+/**
+ * Get level details by ID with role-based data filtering
+ * This endpoint provides level information tailored to the user's role and privacy settings:
+ * - CREATOR: Full access to all level data including invite code and member details
+ * - PLAYER: Limited access with some member information and missed days
+ * - AUDIENCE: Minimal access with basic level and member information only
+ * 
+ * @route GET /api/levels/:id
+ * @param {Object} req - Express request object
+ * @param {Object} req.params - Route parameters
+ * @param {string} req.params.id - Level ID
+ * @param {Object} req.user - Authenticated user object from middleware
+ * @param {string} req.user.id - User ID
+ * @param {Object} res - Express response object
+ * @returns {Object} JSON response with level details or error
+ */
+const getLevelDetails = async (req, res) => {
+  try {
+    const { id: levelId } = req.params;
+    const userId = req.user.id;
+
+    // Find the level with all members
+    const level = await prisma.level.findUnique({
+      where: { id: levelId },
+      include: {
+        levelMembers: {
+          include: {
+            player: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatarUrl: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!level) {
+      return res.status(404).json({ error: 'Level not found' });
+    }
+
+    // Check if user is a member of this level
+    const userMember = await prisma.levelMember.findFirst({
+      where: {
+        playerId: userId,
+        levelId: levelId,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!userMember) {
+      return res.status(403).json({ 
+        error: 'Access denied: You are not a member of this level' 
+      });
+    }
+
+    // Base level response
+    const levelResponse = {
+      id: level.id,
+      name: level.name,
+      description: level.description,
+      isActive: level.isActive,
+      rule: level.rule,
+      settings: level.settings,
+      startDate: level.startDate,
+      endDate: level.endDate,
+      createdAt: level.createdAt,
+      updatedAt: level.updatedAt,
+      userRole: userMember.role,
+      isOwner: level.ownerId === userId
+    };
+
+    // Add invite code only for CREATOR
+    if (userMember.role === 'CREATOR') {
+      levelResponse.inviteCode = level.inviteCode;
+    }
+
+    // Filter and format member list based on user role and privacy settings
+    const visibilitySettings = level.settings?.checkinContentVisibility || 'public';
+    
+    // Filter out non-ACTIVE members and apply role-based filtering
+    const filteredMembers = (level.levelMembers || [])
+      .filter(member => member.status === 'ACTIVE')
+      .map(member => filterMemberData(
+        member, 
+        userMember.role, 
+        visibilitySettings, 
+        userId
+      ));
+
+    levelResponse.members = filteredMembers;
+    levelResponse.memberCount = filteredMembers.length;
+
+    res.json({
+      success: true,
+      level: levelResponse
+    });
+
+  } catch (error) {
+    return handleDatabaseError(error, 'fetch level details', res);
+  }
+};
+
+/**
  * Join a level using invite code
  * POST /api/levels/:id/join
  */
@@ -279,5 +465,6 @@ const joinLevel = async (req, res) => {
 module.exports = {
   createLevel,
   getLevels,
+  getLevelDetails,
   joinLevel
 };
