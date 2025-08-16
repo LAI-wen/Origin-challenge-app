@@ -1,109 +1,152 @@
-# CLAUDE.md
+# Development Guidelines
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Philosophy
 
-## Project Overview
+### Core Beliefs
 
-"8-Bit Habits" (原 Pixel Quest) is a gamified habit-tracking app with a retro pixel aesthetic. The app combines habit formation with survival game mechanics, featuring group challenges, automatic elimination for missed check-ins, and a pixel-art visual style.
+- **Incremental progress over big bangs** - Small changes that compile and pass tests
+- **Learning from existing code** - Study and plan before implementing
+- **Pragmatic over dogmatic** - Adapt to project reality
+- **Clear intent over clever code** - Be boring and obvious
 
-## Architecture
+### Simplicity Means
 
-This is a full-stack application split into two main directories:
+- Single responsibility per function/class
+- Avoid premature abstractions
+- No clever tricks - choose the boring solution
+- If you need to explain it, it's too complex
 
-### Backend (`challenge-app-backend/`)
-- **Framework**: Node.js + Express
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: Google OAuth + JWT
-- **Key Features**: REST API, automated elimination scheduling, email notifications
+## Process
 
-### Frontend (`challenge-app-frontend/`)  
-- **Framework**: React Native (Expo)
-- **Platform**: Cross-platform mobile app (iOS/Android/Web)
-- **Authentication**: Google OAuth integration via Expo Auth Session
-- **UI Style**: Pixel/retro gaming aesthetic
+### 1. Planning & Staging
 
-## Common Development Commands
+Break complex work into 3-5 stages. Document in `IMPLEMENTATION_PLAN.md`:
 
-### Backend Development
-```bash
-cd challenge-app-backend
-npm start                    # Start the backend server
-npm run lint                 # Run ESLint (if configured)
-npm run format              # Run Prettier formatting
-npx prisma generate         # Generate Prisma client after schema changes
-npx prisma migrate dev      # Run database migrations
-npx prisma studio          # Open Prisma Studio for database inspection
+```markdown
+## Stage N: [Name]
+**Goal**: [Specific deliverable]
+**Success Criteria**: [Testable outcomes]
+**Tests**: [Specific test cases]
+**Status**: [Not Started|In Progress|Complete]
 ```
+- Update status as you progress
+- Remove file when all stages are done
 
-### Frontend Development  
-```bash
-cd challenge-app-frontend
-npm start                   # Start Expo development server
-npm run android            # Start on Android device/emulator
-npm run ios                # Start on iOS device/simulator  
-npm run web                # Start web version
-npm run lint               # Run ESLint
-npm run format             # Run Prettier formatting
-```
+### 2. Implementation Flow
 
-## Key Architectural Concepts
+1. **Understand** - Study existing patterns in codebase
+2. **Test** - Write test first (red)
+3. **Implement** - Minimal code to pass (green)
+4. **Refactor** - Clean up with tests passing
+5. **Commit** - With clear message linking to plan
 
-### Data Model Design
-The app uses gaming terminology consistently:
-- **Players** (not Users) - App users with pixel avatars
-- **Levels** (not Groups) - Challenge instances with custom rules
-- **LevelMembers** - Player participation in levels with roles (creator/player/audience)
-- **CheckIns** - Daily habit reports with multiple types (text/image/checkmark)
+### 3. When Stuck (After 3 Attempts)
 
-### Authentication Flow
-1. Google OAuth via Expo Auth Session (frontend)
-2. Token validation and JWT generation (backend `/api/auth/google`)
-3. Persistent login state via JWT storage
+**CRITICAL**: Maximum 3 attempts per issue, then STOP.
 
-### Core Game Mechanics
-- **Daily Check-ins**: Time-restricted habit reporting within level-defined windows
-- **Automatic Elimination**: Scheduled job eliminates players exceeding missed day limits
-- **Privacy Settings**: Configurable visibility for check-in content (public/private/creator-only)
-- **Role System**: Creator/Player/Audience roles with different permissions
+1. **Document what failed**:
+   - What you tried
+   - Specific error messages
+   - Why you think it failed
 
-### Scheduled Jobs
-The backend implements daily scheduling logic (`node-cron`) for:
-- Evaluating missed check-ins
-- Automatic player elimination
-- Achievement badge distribution
-- Email notification dispatch
+2. **Research alternatives**:
+   - Find 2-3 similar implementations
+   - Note different approaches used
 
-### Image Processing Pipeline
-- Players upload clear images locally
-- Backend stores compressed, pixelated versions for consistent visual style
-- Server-side image processing maintains the retro aesthetic
+3. **Question fundamentals**:
+   - Is this the right abstraction level?
+   - Can this be split into smaller problems?
+   - Is there a simpler approach entirely?
 
-## Development Notes
+4. **Try different angle**:
+   - Different library/framework feature?
+   - Different architectural pattern?
+   - Remove abstraction instead of adding?
 
-### Database Migrations
-Always run `npx prisma migrate dev` after schema changes. The current schema is minimal but designed to be extensible for the features outlined in SPEC.md.
+## Technical Standards
 
-### Environment Variables
-Both frontend and backend require proper `.env` configuration for:
-- Database connections (PostgreSQL)
-- Google OAuth credentials (separate for each platform)
-- JWT secrets
-- Email service configuration (future)
+### Architecture Principles
 
-### Internationalization
-The app supports Traditional Chinese and English. All user-facing text should be properly internationalized from the start.
+- **Composition over inheritance** - Use dependency injection
+- **Interfaces over singletons** - Enable testing and flexibility
+- **Explicit over implicit** - Clear data flow and dependencies
+- **Test-driven when possible** - Never disable tests, fix them
 
-### API Design Patterns
-Follow RESTful conventions with gaming terminology:
-- `/api/levels` for challenge management
-- `/api/levels/:id/checkin` for habit reporting
-- `/api/auth/google` for authentication
+### Code Quality
 
-The API should respect role-based permissions and privacy settings when returning data.
+- **Every commit must**:
+  - Compile successfully
+  - Pass all existing tests
+  - Include tests for new functionality
+  - Follow project formatting/linting
 
-## Testing Strategy
+- **Before committing**:
+  - Run formatters/linters
+  - Self-review changes
+  - Ensure commit message explains "why"
 
-Currently no test suite is configured. When implementing tests:
-- Backend: Focus on API endpoints, authentication, and scheduling logic
-- Frontend: Component testing for critical user flows (login, check-in, level management)
-- Integration: End-to-end testing of the complete check-in and elimination workflows
+### Error Handling
+
+- Fail fast with descriptive messages
+- Include context for debugging
+- Handle errors at appropriate level
+- Never silently swallow exceptions
+
+## Decision Framework
+
+When multiple valid approaches exist, choose based on:
+
+1. **Testability** - Can I easily test this?
+2. **Readability** - Will someone understand this in 6 months?
+3. **Consistency** - Does this match project patterns?
+4. **Simplicity** - Is this the simplest solution that works?
+5. **Reversibility** - How hard to change later?
+
+## Project Integration
+
+### Learning the Codebase
+
+- Find 3 similar features/components
+- Identify common patterns and conventions
+- Use same libraries/utilities when possible
+- Follow existing test patterns
+
+### Tooling
+
+- Use project's existing build system
+- Use project's test framework
+- Use project's formatter/linter settings
+- Don't introduce new tools without strong justification
+
+## Quality Gates
+
+### Definition of Done
+
+- [ ] Tests written and passing
+- [ ] Code follows project conventions
+- [ ] No linter/formatter warnings
+- [ ] Commit messages are clear
+- [ ] Implementation matches plan
+- [ ] No TODOs without issue numbers
+
+### Test Guidelines
+
+- Test behavior, not implementation
+- One assertion per test when possible
+- Clear test names describing scenario
+- Use existing test utilities/helpers
+- Tests should be deterministic
+
+## Important Reminders
+
+**NEVER**:
+- Use `--no-verify` to bypass commit hooks
+- Disable tests instead of fixing them
+- Commit code that doesn't compile
+- Make assumptions - verify with existing code
+
+**ALWAYS**:
+- Commit working code incrementally
+- Update plan documentation as you go
+- Learn from existing implementations
+- Stop after 3 failed attempts and reassess

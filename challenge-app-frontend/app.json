@@ -4,36 +4,25 @@
     "slug": "8-bit-habits",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1a1a2e"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.8bithabits"
+      "bundleIdentifier": "com.anonymous.eightbithabits"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1a1a2e"
-      },
-      "package": "com.anonymous.8bithabits"
+      "package": "com.anonymous.eightbithabits"
     },
     "web": {
-      "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
     "plugins": [
       "expo-dev-client"
     ],
-    "scheme": "8bithabits",
+    "scheme": "eightbithabits",
     "extra": {
       "eas": {
         "projectId": "your-project-id-here"

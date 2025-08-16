@@ -1,0 +1,20 @@
+{
+  "app": {
+    "title": "8-Bit Habits",
+    "subtitle": "Pixel-perfect persistence, epic achievements"
+  },
+  "login": {
+    "welcome": "Welcome to the retro pixel world!\nBuild habits, start your survival challenge",
+    "googleLogin": "🚀 Sign in with Google",
+    "logging": "🔄 Signing in...",
+    "footer": "⚡ Ready Player One? ⚡",
+    "failed": "Login Failed",
+    "failedMessage": "Unable to complete Google authentication",
+    "noToken": "No ID token received from Google",
+    "cancelled": "Login Cancelled",
+    "cancelledMessage": "Google authentication was cancelled",
+    "error": "Error",
+    "errorMessage": "An error occurred during login",
+    "switchToChinese": "🌐 中文"
+  }
+}

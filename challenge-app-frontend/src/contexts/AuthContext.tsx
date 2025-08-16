@@ -1,5 +1,6 @@
 // src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { authService } from '../services/auth.service';
 
@@ -34,12 +35,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const loadStoredAuth = async () => {
     try {
-      const token = await SecureStore.getItemAsync('authToken');
-      const userData = await SecureStore.getItemAsync('userData');
-      
-      if (token && userData) {
-        // TODO: Verify token is still valid
-        setUser(JSON.parse(userData));
+      // Check if we're in a web environment
+      if (Platform.OS === 'web') {
+        const token = localStorage.getItem('authToken');
+        const userData = localStorage.getItem('userData');
+        
+        if (token && userData) {
+          setUser(JSON.parse(userData));
+        }
+      } else {
+        const token = await SecureStore.getItemAsync('authToken');
+        const userData = await SecureStore.getItemAsync('userData');
+        
+        if (token && userData) {
+          setUser(JSON.parse(userData));
+        }
       }
     } catch (error) {
       console.error('Error loading stored auth:', error);
@@ -54,8 +64,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const response = await authService.loginWithGoogle(googleToken);
       
       if (response.success) {
-        await SecureStore.setItemAsync('authToken', response.token);
-        await SecureStore.setItemAsync('userData', JSON.stringify(response.user));
+        if (Platform.OS === 'web') {
+          localStorage.setItem('authToken', response.token);
+          localStorage.setItem('userData', JSON.stringify(response.user));
+        } else {
+          await SecureStore.setItemAsync('authToken', response.token);
+          await SecureStore.setItemAsync('userData', JSON.stringify(response.user));
+        }
         setUser(response.user);
         return true;
       }
@@ -70,8 +85,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = async () => {
     try {
-      await SecureStore.deleteItemAsync('authToken');
-      await SecureStore.deleteItemAsync('userData');
+      if (Platform.OS === 'web') {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+      } else {
+        await SecureStore.deleteItemAsync('authToken');
+        await SecureStore.deleteItemAsync('userData');
+      }
       setUser(null);
     } catch (error) {
       console.error('Logout error:', error);

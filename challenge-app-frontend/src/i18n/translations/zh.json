@@ -1,0 +1,20 @@
+{
+  "app": {
+    "title": "🎮 8-Bit Habits",
+    "subtitle": "像素級的堅持，史詩級的成就"
+  },
+  "login": {
+    "welcome": "歡迎來到復古像素世界！\n建立習慣，開啟你的生存挑戰",
+    "googleLogin": "🚀 使用 Google 登入",
+    "logging": "🔄 登入中...",
+    "footer": "⚡ Ready Player One? ⚡",
+    "failed": "登入失敗",
+    "failedMessage": "無法完成 Google 驗證",
+    "noToken": "未收到 Google ID token",
+    "cancelled": "登入取消",
+    "cancelledMessage": "Google 驗證已取消",
+    "error": "錯誤",
+    "errorMessage": "登入過程中發生錯誤",
+    "switchToEnglish": "🌐 English"
+  }
+}

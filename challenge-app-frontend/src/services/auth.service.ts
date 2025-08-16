@@ -1,5 +1,8 @@
 // src/services/auth.service.ts
-const API_BASE_URL = 'http://localhost:3000'; // Change this to your backend URL
+import { Platform } from 'react-native';
+const API_BASE_URL = Platform.OS === 'web' 
+  ? 'http://localhost:3000' 
+  : 'http://10.0.2.2:3000'; // Android emulator uses 10.0.2.2 to access host
 
 interface LoginResponse {
   success: boolean;
@@ -16,6 +19,7 @@ interface LoginResponse {
 class AuthService {
   async loginWithGoogle(googleToken: string): Promise<LoginResponse> {
     try {
+      console.log('🔗 API_BASE_URL:', API_BASE_URL);
       const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
         method: 'POST',
         headers: {
