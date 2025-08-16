@@ -79,9 +79,9 @@ Cron Jobs ← Email Service ← Notification System ← Auto Elimination
 - [ ] Setup integration tests for level API
 
 #### Stage 2.1.2: Level Core Implementation
-- [ ] Implement POST /levels endpoint for level creation
-- [ ] Implement GET /levels endpoint for user's levels
-- [ ] Implement POST /levels/:id/join endpoint with invite codes
+- [x] Implement POST /levels endpoint for level creation
+- [x] Implement GET /levels endpoint for user's levels
+- [x] Implement POST /levels/:id/join endpoint with invite codes
 - [ ] Implement GET /levels/:id endpoint with role-based data filtering
 - [ ] Create level member management endpoints
 - [ ] Implement level settings and privacy controls

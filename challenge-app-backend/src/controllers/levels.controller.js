@@ -3,6 +3,45 @@ const prisma = require('../models/prisma');
 const { generateUniqueInviteCode } = require('../utils/inviteCode');
 
 /**
+ * Helper function to format level response
+ */
+const formatLevelResponse = (level, userRole = null, isOwner = false) => {
+  return {
+    id: level.id,
+    name: level.name,
+    description: level.description,
+    isActive: level.isActive,
+    rule: level.rule,
+    settings: level.settings,
+    startDate: level.startDate,
+    endDate: level.endDate,
+    createdAt: level.createdAt,
+    updatedAt: level.updatedAt,
+    ...(userRole && { userRole }),
+    ...(typeof isOwner === 'boolean' && { isOwner })
+  };
+};
+
+/**
+ * Helper function to handle database errors
+ */
+const handleDatabaseError = (error, operation, res) => {
+  console.error(`Error ${operation}:`, error);
+  
+  if (error.message.includes('unique constraint')) {
+    return res.status(409).json({ 
+      error: 'Conflict',
+      message: 'Please try again'
+    });
+  }
+
+  return res.status(500).json({ 
+    error: `Failed to ${operation}`,
+    message: process.env.NODE_ENV === 'development' ? error.message : 'Please try again'
+  });
+};
+
+/**
  * Create a new level
  * POST /api/levels
  */
@@ -71,35 +110,14 @@ const createLevel = async (req, res) => {
     res.status(201).json({
       success: true,
       level: {
-        id: level.id,
-        name: level.name,
-        description: level.description,
+        ...formatLevelResponse(level),
         inviteCode: level.inviteCode,
-        ownerId: level.ownerId,
-        rule: level.rule,
-        settings: level.settings,
-        isActive: level.isActive,
-        startDate: level.startDate,
-        endDate: level.endDate,
-        createdAt: level.createdAt,
-        updatedAt: level.updatedAt
+        ownerId: level.ownerId
       }
     });
 
   } catch (error) {
-    console.error('Error creating level:', error);
-    
-    if (error.message.includes('unique constraint')) {
-      return res.status(409).json({ 
-        error: 'Invite code conflict',
-        message: 'Please try again'
-      });
-    }
-
-    res.status(500).json({ 
-      error: 'Failed to create level',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Please try again'
-    });
+    return handleDatabaseError(error, 'create level', res);
   }
 };
 
@@ -168,10 +186,91 @@ const getLevels = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching levels:', error);
+    return handleDatabaseError(error, 'fetch levels', res);
+  }
+};
+
+/**
+ * Join a level using invite code
+ * POST /api/levels/:id/join
+ */
+const joinLevel = async (req, res) => {
+  try {
+    const { id: levelId } = req.params;
+    const { inviteCode } = req.body;
+    const userId = req.user.id;
+
+    // Validate required fields
+    if (!inviteCode || inviteCode.trim() === '') {
+      return res.status(400).json({ error: 'Invite code is required' });
+    }
+
+    // Find the level
+    const level = await prisma.level.findUnique({
+      where: { id: levelId }
+    });
+
+    if (!level) {
+      return res.status(404).json({ error: 'Level not found' });
+    }
+
+    // Verify invite code
+    if (level.inviteCode !== inviteCode.trim()) {
+      return res.status(400).json({ error: 'Invalid invite code' });
+    }
+
+    // Check if level is active
+    if (!level.isActive) {
+      return res.status(400).json({ error: 'Level is not active' });
+    }
+
+    // Check if user is already a member
+    const existingMember = await prisma.levelMember.findFirst({
+      where: {
+        playerId: userId,
+        levelId: levelId,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (existingMember) {
+      return res.status(409).json({ error: 'User is already a member of this level' });
+    }
+
+    // Create new level member
+    const newMember = await prisma.levelMember.create({
+      data: {
+        playerId: userId,
+        levelId: levelId,
+        role: 'PLAYER',
+        status: 'ACTIVE'
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Successfully joined level',
+      level: {
+        id: level.id,
+        name: level.name,
+        description: level.description,
+        isActive: level.isActive,
+        rule: level.rule,
+        settings: level.settings,
+        startDate: level.startDate,
+        endDate: level.endDate,
+        createdAt: level.createdAt,
+        updatedAt: level.updatedAt,
+        userRole: newMember.role,
+        isOwner: level.ownerId === userId
+      }
+    });
+
+  } catch (error) {
+    console.error('Error joining level:', error);
     
     res.status(500).json({ 
-      error: 'Failed to fetch levels',
+      error: 'Failed to join level',
       message: process.env.NODE_ENV === 'development' ? error.message : 'Please try again'
     });
   }
@@ -179,5 +278,6 @@ const getLevels = async (req, res) => {
 
 module.exports = {
   createLevel,
-  getLevels
+  getLevels,
+  joinLevel
 };

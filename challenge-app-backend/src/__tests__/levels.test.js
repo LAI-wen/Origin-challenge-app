@@ -17,6 +17,7 @@ jest.mock('../models/prisma', () => ({
   levelMember: {
     create: jest.fn(),
     findMany: jest.fn(),
+    findFirst: jest.fn(),
   },
 }));
 
@@ -504,6 +505,308 @@ describe('GET /api/levels', () => {
       },
       include: expect.any(Object),
       orderBy: expect.any(Object)
+    });
+  });
+});
+
+describe('POST /api/levels/:id/join', () => {
+  let app;
+  let validToken;
+  const mockUser = {
+    id: 'test-user-id',
+    email: 'test@example.com',
+    name: 'Test User'
+  };
+
+  beforeEach(() => {
+    app = createTestApp();
+    validToken = jwt.sign(mockUser, process.env.JWT_SECRET || 'your-default-secret-change-this');
+    jest.clearAllMocks();
+  });
+
+  it('should return 401 when no authorization token is provided', async () => {
+    const response = await request(app)
+      .post('/api/levels/test-level-id/join')
+      .send({ inviteCode: 'ABCD1234' });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Access token is required');
+  });
+
+  it('should return 401 when invalid token is provided', async () => {
+    const response = await request(app)
+      .post('/api/levels/test-level-id/join')
+      .set('Authorization', 'Bearer invalid-token')
+      .send({ inviteCode: 'ABCD1234' });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Invalid token');
+  });
+
+  it('should return 400 when invite code is missing', async () => {
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+
+    const response = await request(app)
+      .post('/api/levels/test-level-id/join')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Invite code is required');
+  });
+
+  it('should return 400 when invite code is empty', async () => {
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+
+    const response = await request(app)
+      .post('/api/levels/test-level-id/join')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ inviteCode: '' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Invite code is required');
+  });
+
+  it('should return 404 when level is not found', async () => {
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(null);
+
+    const response = await request(app)
+      .post('/api/levels/non-existent-level/join')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ inviteCode: 'ABCD1234' });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Level not found');
+  });
+
+  it('should return 400 when invite code is invalid', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      inviteCode: 'ABCD1234',
+      isActive: true,
+      ownerId: 'other-user-id'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+
+    const response = await request(app)
+      .post('/api/levels/test-level-id/join')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ inviteCode: 'WRONG123' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Invalid invite code');
+  });
+
+  it('should return 400 when level is not active', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      inviteCode: 'ABCD1234',
+      isActive: false,
+      ownerId: 'other-user-id'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+
+    const response = await request(app)
+      .post('/api/levels/test-level-id/join')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ inviteCode: 'ABCD1234' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Level is not active');
+  });
+
+  it('should return 409 when user is already a member', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      inviteCode: 'ABCD1234',
+      isActive: true,
+      ownerId: 'other-user-id'
+    };
+
+    const mockExistingMember = {
+      id: 'existing-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'PLAYER',
+      status: 'ACTIVE'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(mockExistingMember);
+
+    const response = await request(app)
+      .post('/api/levels/test-level-id/join')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ inviteCode: 'ABCD1234' });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe('User is already a member of this level');
+  });
+
+  it('should successfully join level with valid invite code', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'A test level for joining',
+      inviteCode: 'ABCD1234',
+      isActive: true,
+      ownerId: 'other-user-id',
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'public'
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const mockCreatedMember = {
+      id: 'new-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'PLAYER',
+      status: 'ACTIVE',
+      missedDays: 0,
+      joinedAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(null); // User is not already a member
+    prisma.levelMember.create.mockResolvedValue(mockCreatedMember);
+
+    const response = await request(app)
+      .post('/api/levels/test-level-id/join')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ inviteCode: 'ABCD1234' });
+
+    expect(response.status).toBe(201);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe('Successfully joined level');
+    expect(response.body.level).toMatchObject({
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'A test level for joining',
+      isActive: true,
+      userRole: 'PLAYER'
+    });
+
+    // Verify database calls
+    expect(prisma.level.findUnique).toHaveBeenCalledWith({
+      where: { id: 'test-level-id' }
+    });
+
+    expect(prisma.levelMember.findFirst).toHaveBeenCalledWith({
+      where: {
+        playerId: mockUser.id,
+        levelId: 'test-level-id',
+        status: 'ACTIVE'
+      }
+    });
+
+    expect(prisma.levelMember.create).toHaveBeenCalledWith({
+      data: {
+        playerId: mockUser.id,
+        levelId: 'test-level-id',
+        role: 'PLAYER',
+        status: 'ACTIVE'
+      }
+    });
+  });
+
+  it('should handle database errors gracefully', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      inviteCode: 'ABCD1234',
+      isActive: true,
+      ownerId: 'other-user-id'
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(null);
+    prisma.levelMember.create.mockRejectedValue(new Error('Database connection failed'));
+
+    const response = await request(app)
+      .post('/api/levels/test-level-id/join')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ inviteCode: 'ABCD1234' });
+
+    expect(response.status).toBe(500);
+    expect(response.body.error).toBe('Failed to join level');
+  });
+
+  it('should allow owner to join their own level using invite code', async () => {
+    const mockLevel = {
+      id: 'test-level-id',
+      name: 'Test Level',
+      description: 'A test level owned by user',
+      inviteCode: 'ABCD1234',
+      isActive: true,
+      ownerId: mockUser.id, // User owns this level
+      rule: {
+        startTime: '06:00',
+        endTime: '22:00',
+        maxMissedDays: 3
+      },
+      settings: {
+        checkinContentVisibility: 'public'
+      },
+      startDate: new Date('2025-08-20T00:00:00Z'),
+      endDate: new Date('2025-09-20T00:00:00Z'),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const mockCreatedMember = {
+      id: 'new-member-id',
+      playerId: mockUser.id,
+      levelId: 'test-level-id',
+      role: 'PLAYER', // Even owner joins as PLAYER when using invite code
+      status: 'ACTIVE',
+      missedDays: 0,
+      joinedAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    prisma.player.findUnique.mockResolvedValue(mockUser);
+    prisma.level.findUnique.mockResolvedValue(mockLevel);
+    prisma.levelMember.findFirst.mockResolvedValue(null); // User is not already a member
+    prisma.levelMember.create.mockResolvedValue(mockCreatedMember);
+
+    const response = await request(app)
+      .post('/api/levels/test-level-id/join')
+      .set('Authorization', `Bearer ${validToken}`)
+      .send({ inviteCode: 'ABCD1234' });
+
+    expect(response.status).toBe(201);
+    expect(response.body.success).toBe(true);
+    expect(response.body.level.userRole).toBe('PLAYER');
+
+    // Verify member was created with PLAYER role
+    expect(prisma.levelMember.create).toHaveBeenCalledWith({
+      data: {
+        playerId: mockUser.id,
+        levelId: 'test-level-id',
+        role: 'PLAYER',
+        status: 'ACTIVE'
+      }
     });
   });
 });
