@@ -29,6 +29,8 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/levels', levelsRoutes);
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server is running on http://0.0.0.0:${port}`);
+  console.log(`  - Local: http://localhost:${port}`);
+  console.log(`  - Android emulator: http://10.0.2.2:${port}`);
 });

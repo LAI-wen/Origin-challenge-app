@@ -14,6 +14,7 @@ interface LevelContextType {
   loadLevels: () => Promise<void>;
   createLevel: (levelData: CreateLevelRequest) => Promise<Level | null>;
   joinLevel: (levelId: string, inviteCode: string) => Promise<Level | null>;
+  joinLevelByCode: (inviteCode: string) => Promise<Level | null>;
   setActiveLevel: (level: Level | null) => void;
   refreshLevelDetails: (levelId: string) => Promise<Level | null>;
   clearError: () => void;
@@ -93,16 +94,65 @@ export const LevelProvider = ({ children }: LevelProviderProps) => {
       const response = await levelService.createLevel(levelData);
       
       if (response.success && response.level) {
-        // Add the new level to the list
-        setLevels(prevLevels => [response.level, ...prevLevels]);
+        // Add the new level to the list with correct ownership data
+        const updatedLevel = {
+          ...response.level,
+          userRole: 'CREATOR',
+          isOwner: true
+        };
+        setLevels(prevLevels => [updatedLevel, ...prevLevels]);
         console.log(`✅ Created level: ${response.level.name}`);
-        return response.level;
+        return updatedLevel;
       } else {
         throw new Error(response.error || 'Failed to create level');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create level';
       console.error('❌ Error creating level:', errorMessage);
+      setError(errorMessage);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Join a level using invite code (without knowing level ID)
+   */
+  const joinLevelByCode = async (inviteCode: string): Promise<Level | null> => {
+    if (!user) {
+      setError('User must be logged in to join a level');
+      return null;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await levelService.joinLevelByCode({ inviteCode });
+      
+      if (response.success && response.level) {
+        // Add the joined level to the list if not already present
+        setLevels(prevLevels => {
+          const exists = prevLevels.some(level => level.id === response.level.id);
+          if (exists) {
+            // Update existing level data
+            return prevLevels.map(level => 
+              level.id === response.level.id ? response.level : level
+            );
+          } else {
+            // Add new level
+            return [response.level, ...prevLevels];
+          }
+        });
+        console.log(`✅ Joined level: ${response.level.name}`);
+        return response.level;
+      } else {
+        throw new Error(response.error || 'Failed to join level');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to join level';
+      console.error('❌ Error joining level:', errorMessage);
       setError(errorMessage);
       return null;
     } finally {
@@ -230,6 +280,7 @@ export const LevelProvider = ({ children }: LevelProviderProps) => {
     loadLevels,
     createLevel,
     joinLevel,
+    joinLevelByCode,
     setActiveLevel,
     refreshLevelDetails,
     clearError,

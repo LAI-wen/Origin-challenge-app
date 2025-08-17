@@ -18,9 +18,13 @@ import { useLevel } from '../contexts/LevelContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Theme } from '../styles/theme';
 
-export const LevelListScreen: React.FC = () => {
+interface LevelListScreenProps {
+  onNavigateToSettings?: () => void;
+}
+
+export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSettings }) => {
   const { user } = useAuth();
-  const { levels, isLoading, error, loadLevels, createLevel, joinLevel, clearError } = useLevel();
+  const { levels, isLoading, error, loadLevels, createLevel, joinLevelByCode, clearError } = useLevel();
   const styles = useStyles(createLevelListStyles);
   
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -58,6 +62,8 @@ export const LevelListScreen: React.FC = () => {
         setNewLevelName('');
         setNewLevelDescription('');
         setShowCreateForm(false);
+        // Close any other forms that might be open
+        setShowJoinForm(false);
       }
     } catch (error) {
       console.error('Create level error:', error);
@@ -71,13 +77,13 @@ export const LevelListScreen: React.FC = () => {
     
     setJoinLoading(true);
     try {
-      // 這裡需要從 joinCode 中提取 levelId
-      // 假設 joinCode 格式為 "levelId:code" 或者我們有獨立的 API
-      const result = await joinLevel('temp-level-id', joinCode.trim());
+      const result = await joinLevelByCode(joinCode.trim());
       
       if (result) {
         setJoinCode('');
         setShowJoinForm(false);
+        // Close any other forms that might be open
+        setShowCreateForm(false);
       }
     } catch (error) {
       console.error('Join level error:', error);
@@ -174,10 +180,20 @@ export const LevelListScreen: React.FC = () => {
     );
   };
 
-  const renderLevelCard = (level: any) => (
-    <TouchableOpacity key={level.id} style={styles.levelCardContainer}>
-      <PixelCard variant="elevated" style={styles.levelCard}>
-        <View style={styles.levelHeader}>
+  const renderLevelCard = (level: any) => {
+    console.log('📋 Rendering level card:', {
+      id: level.id,
+      name: level.name,
+      isOwner: level.isOwner,
+      userRole: level.userRole,
+      inviteCode: level.inviteCode,
+      hasInviteCode: !!level.inviteCode
+    });
+    
+    return (
+      <TouchableOpacity key={level.id} style={styles.levelCardContainer}>
+        <PixelCard variant="elevated" style={styles.levelCard}>
+          <View style={styles.levelHeader}>
           <PixelText variant="h6" weight="bold" color="text">
             {level.name}
           </PixelText>
@@ -203,7 +219,7 @@ export const LevelListScreen: React.FC = () => {
           </PixelText>
         </View>
         
-        {level.isOwner && level.inviteCode && (
+        {(level.isOwner || level.userRole === 'CREATOR') && level.inviteCode && (
           <View style={styles.inviteCodeContainer}>
             <PixelText variant="caption" color="textSecondary">
               Invite Code:
@@ -213,9 +229,10 @@ export const LevelListScreen: React.FC = () => {
             </PixelText>
           </View>
         )}
-      </PixelCard>
-    </TouchableOpacity>
-  );
+        </PixelCard>
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -250,25 +267,47 @@ export const LevelListScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <PixelText variant="h3" weight="bold" color="accent">
-          🎯 Challenge Levels
-        </PixelText>
-        <PixelText variant="body2" color="textSecondary">
-          Manage your habit challenges
-        </PixelText>
+        <View style={styles.headerContent}>
+          <View style={styles.titleSection}>
+            <PixelText variant="h3" weight="bold" color="accent">
+              🎯 Challenge Levels
+            </PixelText>
+            <PixelText variant="body2" color="textSecondary">
+              Manage your habit challenges
+            </PixelText>
+          </View>
+          <PixelButton
+            variant="ghost"
+            title="⚙️"
+            onPress={() => {
+              if (onNavigateToSettings) {
+                onNavigateToSettings();
+              } else {
+                console.log('Settings navigation not available');
+              }
+            }}
+            style={styles.settingsButton}
+          />
+        </View>
       </View>
 
       <View style={styles.actionBar}>
         <PixelButton
           variant="primary"
           title="+ Create"
-          onPress={() => setShowCreateForm(true)}
+          onPress={() => {
+            setShowCreateForm(true);
+            setShowJoinForm(false);
+          }}
           style={styles.actionButton}
         />
         <PixelButton
           variant="outline"
           title="🔗 Join"
-          onPress={() => setShowJoinForm(true)}
+          onPress={() => {
+            setShowJoinForm(true);
+            setShowCreateForm(false);
+          }}
           style={styles.actionButton}
         />
       </View>
@@ -315,6 +354,23 @@ const createLevelListStyles = (theme: Theme) => ({
   
   header: {
     marginBottom: theme.spacing.l,
+  },
+  
+  headerContent: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'flex-start' as const,
+  },
+  
+  titleSection: {
+    flex: 1,
+    alignItems: 'center' as const,
+  },
+  
+  settingsButton: {
+    minWidth: 48,
+    minHeight: 48,
+    justifyContent: 'center' as const,
     alignItems: 'center' as const,
   },
   

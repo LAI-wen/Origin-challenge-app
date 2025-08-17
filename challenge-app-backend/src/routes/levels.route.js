@@ -1,6 +1,6 @@
 // src/routes/levels.route.js
 const express = require('express');
-const { createLevel, getLevels, getLevelDetails, joinLevel, updateMemberRole, removeMember, updateLevelSettings, updateLevelStatus } = require('../controllers/levels.controller');
+const { createLevel, getLevels, getLevelDetails, joinLevel, joinLevelByCode, updateMemberRole, removeMember, updateLevelSettings, updateLevelStatus } = require('../controllers/levels.controller');
 const { authenticateToken } = require('../middleware/auth.middleware');
 
 const router = express.Router();
@@ -10,6 +10,9 @@ router.get('/', authenticateToken, getLevels);
 
 // POST /api/levels - Create new level (requires authentication)
 router.post('/', authenticateToken, createLevel);
+
+// POST /api/levels/join - Join level by invite code (requires authentication)
+router.post('/join', authenticateToken, joinLevelByCode);
 
 // GET /api/levels/:id - Get level details with role-based filtering (requires authentication)
 router.get('/:id', authenticateToken, getLevelDetails);

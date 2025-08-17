@@ -178,6 +178,17 @@ class LevelService {
   }
 
   /**
+   * Join a level using invite code (without knowing level ID)
+   * POST /api/levels/join
+   */
+  async joinLevelByCode(joinData: JoinLevelRequest): Promise<JoinLevelResponse> {
+    return this.makeRequest<JoinLevelResponse>('/levels/join', {
+      method: 'POST',
+      body: JSON.stringify(joinData),
+    });
+  }
+
+  /**
    * Join a level using invite code
    * POST /api/levels/:id/join
    */

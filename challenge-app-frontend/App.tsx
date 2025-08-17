@@ -1,10 +1,12 @@
 // App.tsx
+import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { LevelProvider } from './src/contexts/LevelContext';
 import LoginScreen from './src/screens/LoginScreen';
+import { LevelListScreen } from './src/screens/LevelListScreen';
 import * as WebBrowser from 'expo-web-browser';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { 
@@ -23,6 +25,7 @@ function AppContent() {
   const { user, isLoading, logout } = useAuth();
   const { theme, toggleTheme, themeMode } = useTheme();
   const styles = useStyles(createAppStyles);
+  const [showWelcome, setShowWelcome] = useState(true);
 
   const handleLogout = async () => {
     try {
@@ -53,6 +56,17 @@ function AppContent() {
   }
 
   if (user) {
+    // If user has dismissed welcome screen, show the main app
+    if (!showWelcome) {
+      return (
+        <View style={{ flex: 1 }}>
+          <LevelListScreen onNavigateToSettings={() => setShowWelcome(true)} />
+          <StatusBar style={themeMode === 'monochrome' ? 'light' : 'auto'} />
+        </View>
+      );
+    }
+
+    // Show welcome screen with option to proceed
     return (
       <View style={styles.container}>
         <PixelCard variant="elevated" style={styles.welcomeCard}>
@@ -77,17 +91,26 @@ function AppContent() {
 
           <View style={styles.buttonContainer}>
             <PixelButton
+              variant="primary"
+              title="🎯 Start Challenge"
+              onPress={() => setShowWelcome(false)}
+              style={styles.startButton}
+            />
+          </View>
+
+          <View style={styles.settingsContainer}>
+            <PixelButton
               variant="outline"
               title={`Theme: ${themeMode}`}
               onPress={toggleTheme}
-              style={styles.themeButton}
+              style={styles.settingButton}
             />
             
             <PixelButton
               variant="secondary"
               title="🚪 Logout"
               onPress={handleLogout}
-              style={styles.logoutButton}
+              style={styles.settingButton}
             />
           </View>
         </PixelCard>
@@ -139,15 +162,18 @@ const createAppStyles = (theme: Theme) => ({
     borderColor: theme.colors.border,
   },
   buttonContainer: {
+    marginTop: theme.spacing.l,
+    marginBottom: theme.spacing.m,
+  },
+  startButton: {
+    width: '100%' as const,
+  },
+  settingsContainer: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
-    marginTop: theme.spacing.l,
     gap: theme.spacing.s,
   },
-  themeButton: {
-    flex: 1,
-  },
-  logoutButton: {
+  settingButton: {
     flex: 1,
   },
 });

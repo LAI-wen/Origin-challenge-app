@@ -112,7 +112,8 @@ const createLevel = async (req, res) => {
       level: {
         ...formatLevelResponse(level),
         inviteCode: level.inviteCode,
-        ownerId: level.ownerId
+        ownerId: level.ownerId,
+        memberCount: 1
       }
     });
 
@@ -377,6 +378,87 @@ const getLevelDetails = async (req, res) => {
 };
 
 /**
+ * Join a level using invite code (without knowing level ID)
+ * POST /api/levels/join
+ */
+const joinLevelByCode = async (req, res) => {
+  try {
+    const { inviteCode } = req.body;
+    const userId = req.user.id;
+
+    // Validate required fields
+    if (!inviteCode || inviteCode.trim() === '') {
+      return res.status(400).json({ error: 'Invite code is required' });
+    }
+
+    // Find the level by invite code
+    const level = await prisma.level.findFirst({
+      where: { 
+        inviteCode: inviteCode.trim(),
+        isActive: true
+      },
+      include: {
+        _count: {
+          select: {
+            levelMembers: {
+              where: {
+                status: 'ACTIVE'
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!level) {
+      return res.status(404).json({ error: 'Invalid invite code or level not found' });
+    }
+
+    // Check if user is already a member
+    const existingMember = await prisma.levelMember.findFirst({
+      where: {
+        playerId: userId,
+        levelId: level.id,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (existingMember) {
+      return res.status(409).json({ error: 'You are already a member of this level' });
+    }
+
+    // Create new member with PLAYER role
+    const newMember = await prisma.levelMember.create({
+      data: {
+        playerId: userId,
+        levelId: level.id,
+        role: 'PLAYER',
+        status: 'ACTIVE'
+      }
+    });
+
+    // Get updated member count after adding the new member
+    const updatedMemberCount = level._count.levelMembers + 1;
+
+    // Get the user's role for this level (will be PLAYER)
+    const userRole = newMember.role;
+    const isOwner = level.ownerId === userId;
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully joined level: ${level.name}`,
+      level: {
+        ...formatLevelResponse(level, userRole, isOwner),
+        memberCount: updatedMemberCount
+      }
+    });
+
+  } catch (error) {
+    return handleDatabaseError(error, 'join level by code', res);
+  }
+};
+
+/**
  * Join a level using invite code
  * POST /api/levels/:id/join
  */
@@ -391,9 +473,20 @@ const joinLevel = async (req, res) => {
       return res.status(400).json({ error: 'Invite code is required' });
     }
 
-    // Find the level
+    // Find the level with member count
     const level = await prisma.level.findUnique({
-      where: { id: levelId }
+      where: { id: levelId },
+      include: {
+        _count: {
+          select: {
+            levelMembers: {
+              where: {
+                status: 'ACTIVE'
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!level) {
@@ -433,6 +526,9 @@ const joinLevel = async (req, res) => {
       }
     });
 
+    // Get updated member count after adding the new member
+    const updatedMemberCount = level._count.levelMembers + 1;
+
     res.status(201).json({
       success: true,
       message: 'Successfully joined level',
@@ -448,17 +544,13 @@ const joinLevel = async (req, res) => {
         createdAt: level.createdAt,
         updatedAt: level.updatedAt,
         userRole: newMember.role,
-        isOwner: level.ownerId === userId
+        isOwner: level.ownerId === userId,
+        memberCount: updatedMemberCount
       }
     });
 
   } catch (error) {
-    console.error('Error joining level:', error);
-    
-    res.status(500).json({ 
-      error: 'Failed to join level',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Please try again'
-    });
+    return handleDatabaseError(error, 'join level', res);
   }
 };
 
@@ -1007,6 +1099,7 @@ module.exports = {
   getLevels,
   getLevelDetails,
   joinLevel,
+  joinLevelByCode,
   updateMemberRole,
   removeMember,
   updateLevelSettings,
