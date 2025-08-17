@@ -1,16 +1,28 @@
 // App.tsx
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
+import { LevelProvider } from './src/contexts/LevelContext';
 import LoginScreen from './src/screens/LoginScreen';
 import * as WebBrowser from 'expo-web-browser';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { 
+  PixelText, 
+  PixelButton, 
+  PixelCard, 
+  LoadingSpinner,
+  useStyles 
+} from './src/components/ui';
+import { Theme } from './src/styles/theme';
 import './src/i18n';
 
 WebBrowser.maybeCompleteAuthSession();
 
 function AppContent() {
   const { user, isLoading, logout } = useAuth();
+  const { theme, toggleTheme, themeMode } = useTheme();
+  const styles = useStyles(createAppStyles);
 
   const handleLogout = async () => {
     try {
@@ -31,7 +43,11 @@ function AppContent() {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.loadingText}>🎮 Loading 8-Bit Habits...</Text>
+        <LoadingSpinner 
+          variant="text" 
+          size="large" 
+          text="Loading 8-Bit Habits..."
+        />
       </View>
     );
   }
@@ -39,27 +55,44 @@ function AppContent() {
   if (user) {
     return (
       <View style={styles.container}>
-        <Text style={styles.welcomeText}>Welcome back, {user.name}! 🎯</Text>
-        <Text style={styles.subtitle}>Ready for your pixel quest?</Text>
-        
-        <View style={styles.userInfo}>
-          <Text style={styles.userEmail}>📧 {user.email}</Text>
-          {user.language && (
-            <Text style={styles.userLanguage}>🌐 Language: {user.language}</Text>
-          )}
-        </View>
+        <PixelCard variant="elevated" style={styles.welcomeCard}>
+          <PixelText variant="h3" color="accent" weight="bold" align="center">
+            Welcome back, {user.name}! 🎯
+          </PixelText>
+          
+          <PixelText variant="body1" color="textSecondary" align="center" style={styles.subtitle}>
+            Ready for your pixel quest?
+          </PixelText>
+          
+          <View style={styles.userInfo}>
+            <PixelText variant="body2" color="text">
+              📧 {user.email}
+            </PixelText>
+            {user.language && (
+              <PixelText variant="caption" color="textMuted">
+                🌐 Language: {user.language}
+              </PixelText>
+            )}
+          </View>
 
-        <Pressable 
-          style={({ pressed }) => [
-            styles.logoutButton,
-            pressed && styles.buttonPressed
-          ]}
-          onPress={handleLogout}
-        >
-          <Text style={styles.logoutButtonText}>🚪 Logout / 登出</Text>
-        </Pressable>
+          <View style={styles.buttonContainer}>
+            <PixelButton
+              variant="outline"
+              title={`Theme: ${themeMode}`}
+              onPress={toggleTheme}
+              style={styles.themeButton}
+            />
+            
+            <PixelButton
+              variant="secondary"
+              title="🚪 Logout"
+              onPress={handleLogout}
+              style={styles.logoutButton}
+            />
+          </View>
+        </PixelCard>
         
-        <StatusBar style="auto" />
+        <StatusBar style={themeMode === 'monochrome' ? 'light' : 'auto'} />
       </View>
     );
   }
@@ -69,73 +102,52 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider initialTheme="monochrome">
+      <AuthProvider>
+        <LevelProvider>
+          <AppContent />
+        </LevelProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
-const styles = StyleSheet.create({
+// 使用主題系統的樣式創建函數
+const createAppStyles = (theme: Theme) => ({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    padding: theme.spacing.l,
   },
-  loadingText: {
-    color: '#00ffff',
-    fontSize: 18,
-    fontFamily: 'monospace',
-    textAlign: 'center',
-  },
-  welcomeText: {
-    color: '#00ff00',
-    fontSize: 20,
-    fontFamily: 'monospace',
-    textAlign: 'center',
-    marginBottom: 10,
+  welcomeCard: {
+    width: '100%' as const,
+    maxWidth: 400,
+    padding: theme.spacing.l,
   },
   subtitle: {
-    color: '#ffff00',
-    fontSize: 16,
-    fontFamily: 'monospace',
-    textAlign: 'center',
-    marginBottom: 30,
+    marginTop: theme.spacing.s,
+    marginBottom: theme.spacing.l,
   },
   userInfo: {
-    alignItems: 'center',
-    marginBottom: 40,
+    alignItems: 'center' as const,
+    marginVertical: theme.spacing.l,
+    padding: theme.spacing.m,
+    backgroundColor: theme.colors.surfaceLight,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.border,
   },
-  userEmail: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontFamily: 'monospace',
-    textAlign: 'center',
-    marginBottom: 5,
+  buttonContainer: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    marginTop: theme.spacing.l,
+    gap: theme.spacing.s,
   },
-  userLanguage: {
-    color: '#cccccc',
-    fontSize: 14,
-    fontFamily: 'monospace',
-    textAlign: 'center',
+  themeButton: {
+    flex: 1,
   },
   logoutButton: {
-    backgroundColor: '#ff6666',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#ff4444',
-  },
-  logoutButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    fontFamily: 'monospace',
-    textAlign: 'center',
-  },
-  buttonPressed: {
-    opacity: 0.8,
+    flex: 1,
   },
 });
