@@ -1,6 +1,6 @@
 # 8-Bit Habits API 參考文檔
 
-**版本**: 2.0  
+**版本**: 3.0  
 **基礎 URL**: `http://localhost:3000/api`  
 **認證**: Bearer JWT Token
 
@@ -92,7 +92,8 @@ Authorization: Bearer <JWT_TOKEN>
     "endDate": "2025-09-20T00:00:00Z",
     "createdAt": "2025-08-16T10:00:00Z",
     "userRole": "CREATOR",
-    "isOwner": true
+    "isOwner": true,
+    "memberCount": 1
   }
 }
 ```
@@ -124,9 +125,9 @@ Authorization: Bearer <JWT_TOKEN>
 }
 ```
 
-### 3. 加入關卡
+### 3. 透過邀請碼加入關卡 (推薦)
 
-**端點**: `POST /levels/:id/join`  
+**端點**: `POST /levels/join`  
 **認證**: 必需  
 **權限**: 所有認證用戶
 
@@ -141,17 +142,50 @@ Authorization: Bearer <JWT_TOKEN>
 ```json
 {
   "success": true,
-  "message": "成功加入關卡",
+  "message": "Successfully joined level: 30天運動挑戰",
   "level": {
     "id": "level-uuid",
     "name": "30天運動挑戰",
+    "description": "每日運動30分鐘",
+    "isActive": true,
     "userRole": "PLAYER",
-    "isOwner": false
+    "isOwner": false,
+    "memberCount": 6,
+    "createdAt": "2025-08-16T10:00:00Z"
   }
 }
 ```
 
-### 4. 獲取關卡詳情
+### 4. 加入關卡 (舊版)
+
+**端點**: `POST /levels/:id/join`  
+**認證**: 必需  
+**權限**: 所有認證用戶  
+**注意**: 此端點需要預先知道關卡ID，建議使用 `POST /levels/join`
+
+#### 請求參數
+```json
+{
+  "inviteCode": "ABCD1234"  // 必需，8字符邀請碼
+}
+```
+
+#### 響應範例
+```json
+{
+  "success": true,
+  "message": "Successfully joined level",
+  "level": {
+    "id": "level-uuid",
+    "name": "30天運動挑戰",
+    "userRole": "PLAYER",
+    "isOwner": false,
+    "memberCount": 6
+  }
+}
+```
+
+### 5. 獲取關卡詳情
 
 **端點**: `GET /levels/:id`  
 **認證**: 必需  
@@ -194,7 +228,7 @@ Authorization: Bearer <JWT_TOKEN>
 }
 ```
 
-### 5. 更新成員角色
+### 6. 更新成員角色
 
 **端點**: `PUT /levels/:id/members/:memberId`  
 **認證**: 必需  
@@ -222,7 +256,7 @@ Authorization: Bearer <JWT_TOKEN>
 }
 ```
 
-### 6. 移除成員
+### 7. 移除成員
 
 **端點**: `DELETE /levels/:id/members/:memberId`  
 **認證**: 必需  
@@ -236,7 +270,7 @@ Authorization: Bearer <JWT_TOKEN>
 }
 ```
 
-### 7. 更新關卡設定
+### 8. 更新關卡設定
 
 **端點**: `PUT /levels/:id`  
 **認證**: 必需  
@@ -282,7 +316,7 @@ Authorization: Bearer <JWT_TOKEN>
 }
 ```
 
-### 8. 更新關卡狀態
+### 9. 更新關卡狀態
 
 **端點**: `PUT /levels/:id/status`  
 **認證**: 必需  
@@ -383,6 +417,6 @@ npx prisma studio --port 5557
 
 ---
 
-**更新日期**: 2025-08-16  
-**API 版本**: v1.0  
-**文檔版本**: 1.0
+**更新日期**: 2025-08-17  
+**API 版本**: v3.0  
+**文檔版本**: 3.0
