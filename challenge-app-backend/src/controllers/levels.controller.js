@@ -1096,6 +1096,65 @@ const updateLevelSettings = async (req, res) => {
   }
 };
 
+/**
+ * Delete a level (creator only)
+ * DELETE /api/levels/:id
+ */
+const deleteLevel = async (req, res) => {
+  try {
+    const { id: levelId } = req.params;
+    const userId = req.user.id;
+
+    // Check if level exists and user is the owner
+    const level = await prisma.level.findUnique({
+      where: { id: levelId },
+      include: {
+        levelMembers: {
+          include: {
+            checkIns: true
+          }
+        }
+      }
+    });
+
+    if (!level) {
+      return res.status(404).json({ error: 'Level not found' });
+    }
+
+    // Only the creator can delete the level
+    if (level.ownerId !== userId) {
+      return res.status(403).json({ 
+        error: 'Access denied: Only the level creator can delete this level' 
+      });
+    }
+
+    // Check if level has check-ins (for confirmation)
+    const totalCheckins = level.levelMembers.reduce((total, member) => total + member.checkIns.length, 0);
+    const memberCount = level.levelMembers.length;
+
+    // Delete the level (cascade will handle related records)
+    await prisma.level.delete({
+      where: { id: levelId }
+    });
+
+    res.json({
+      success: true,
+      message: `Level "${level.name}" has been successfully deleted`,
+      deletedLevel: {
+        id: level.id,
+        name: level.name,
+        memberCount: memberCount,
+        totalCheckins: totalCheckins,
+        wasActive: level.isActive,
+        createdAt: level.createdAt
+      }
+    });
+
+  } catch (error) {
+    return handleDatabaseError(error, 'delete level', res);
+  }
+};
+
 module.exports = {
   createLevel,
   getLevels,
@@ -1106,6 +1165,7 @@ module.exports = {
   removeMember,
   updateLevelSettings,
   updateLevelStatus,
+  deleteLevel,
   // Helper functions for automatic status management
   isLevelExpired,
   updateExpiredLevels,

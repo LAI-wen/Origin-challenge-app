@@ -6,36 +6,34 @@
 const express = require('express');
 const router = express.Router();
 const checkinController = require('../controllers/checkin.controller');
-const authMiddleware = require('../middleware/auth.middleware');
+const { authenticateToken } = require('../middleware/auth.middleware');
 
 // 所有路由都需要驗證
-router.use(authMiddleware);
+router.use(authenticateToken);
 
 /**
  * 提交打卡
- * POST /api/levels/:id/checkins
- * Body: { type: "TEXT|IMAGE|CHECKMARK", content?: string, imageData?: string }
+ * POST /api/checkin/:levelId
+ * Body: { type: "TEXT|IMAGE|CHECKMARK", content?: string, image?: string }
  */
-router.post('/:id/checkins', checkinController.submitCheckin);
+router.post('/:levelId', checkinController.submitCheckin);
 
 /**
- * 獲取關卡打卡記錄
- * GET /api/levels/:id/checkins
- * Query: { date?: "YYYY-MM-DD", playerId?: string }
+ * 獲取今日打卡狀態  
+ * GET /api/checkin/:levelId/today
  */
-router.get('/:id/checkins', checkinController.getLevelCheckins);
+router.get('/:levelId/today', checkinController.getTodayCheckinStatus);
 
 /**
- * 獲取今日打卡狀態
- * GET /api/levels/:id/checkins/today
+ * 獲取打卡歷史
+ * GET /api/checkin/:levelId/history
  */
-router.get('/:id/checkins/today', checkinController.getTodayCheckinStatus);
+router.get('/:levelId/history', checkinController.getLevelCheckins);
 
 /**
- * 獲取玩家打卡歷史
- * GET /api/levels/:id/checkins/history/:playerId
- * Query: { limit?: number, offset?: number }
+ * 獲取房間逃脫狀態
+ * GET /api/checkin/:levelId/escape-status
  */
-router.get('/:id/checkins/history/:playerId', checkinController.getPlayerCheckinHistory);
+router.get('/:levelId/escape-status', checkinController.getRoomEscapeStatus);
 
 module.exports = router;

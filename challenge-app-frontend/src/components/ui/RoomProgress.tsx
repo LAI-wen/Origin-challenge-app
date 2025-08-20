@@ -23,7 +23,7 @@ export const RoomProgress: React.FC<RoomProgressProps> = ({
   const { t } = useTranslation();
 
   // 計算剩餘天數
-  const remainingDays = Math.max(0, roomState.escapeCondition.target - roomState.escapeCondition.current);
+  const remainingDays = Math.max(0, (roomState.escapeCondition?.target || 30) - (roomState.escapeCondition?.current || 0));
   const progressPercentage = roomState.progress || 0;
   const isCompleted = progressPercentage >= 100;
   const isLocked = roomState.locked !== false;
@@ -90,7 +90,7 @@ export const RoomProgress: React.FC<RoomProgressProps> = ({
         </View>
         
         <PixelText variant="body2" color="textSecondary" style={styles.description}>
-          {t('escapeRoom.escapeCondition', { target: roomState.escapeCondition.target })}
+          {t('escapeRoom.escapeCondition', { target: roomState.escapeCondition?.target || 30 })}
         </PixelText>
       </View>
 
@@ -119,7 +119,7 @@ export const RoomProgress: React.FC<RoomProgressProps> = ({
 
         <View style={styles.progressInfo}>
           <PixelText variant="caption" color="textMuted">
-            {roomState.escapeCondition.current} / {roomState.escapeCondition.target} {t('escapeRoom.days')}
+            {roomState.escapeCondition?.current || 0} / {roomState.escapeCondition?.target || 30} {t('escapeRoom.days')}
           </PixelText>
           <PixelText variant="caption" color={getProgressColor()}>
             {getStatusMessage()}

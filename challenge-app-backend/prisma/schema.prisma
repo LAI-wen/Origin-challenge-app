@@ -27,19 +27,19 @@ model Player {
 
 model Level {
   id           String        @id @default(uuid()) @db.Uuid
-  name         String        // 房間名稱 e.g. "30天讀書挑戰室"
+  name         String
   description  String?
   inviteCode   String        @unique @db.VarChar(8)
   ownerId      String        @db.Uuid
   isActive     Boolean       @default(true)
   rule         Json          @default("{\"endTime\": \"23:00\", \"startTime\": \"05:00\", \"maxMissedDays\": 3}")
   settings     Json          @default("{\"habitType\": \"generic\", \"checkinContentVisibility\": \"public\"}")
-  roomState    Json          @default("{\"scene\":\"default_room\",\"theme\":\"classic\",\"items\":[],\"progress\":0,\"locked\":true}")
   startDate    DateTime      @default(now())
   endDate      DateTime?
-  completedAt  DateTime?     // 房間解鎖時間
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  completedAt  DateTime?
+  roomState    Json          @default("{\"items\": [], \"scene\": \"default_room\", \"theme\": \"classic\", \"locked\": true, \"progress\": 0}")
   levelMembers LevelMember[]
   owner        Player        @relation("LevelOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   quiz         Quiz?

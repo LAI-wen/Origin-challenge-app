@@ -60,5 +60,31 @@
     "error": "錯誤",
     "loadingLevels": "載入房間中...",
     "settings": "⚙️"
+  },
+  "checkin": {
+    "dailyAttempt": "🗝️ 每日逃脫嘗試",
+    "backButton": "← 返回",
+    "alreadyComplete": "✅ 今日打卡完成！",
+    "windowClosed": "⏰ 打卡時段已結束",
+    "chooseType": "選擇你的逃脫方式：",
+    "justDone": "已完成",
+    "writeLog": "寫日誌",
+    "photoProof": "上傳證明",
+    "writeLogLabel": "📝 寫下你的逃脫日誌：",
+    "writeLogPlaceholder": "描述你今天完成了什麼...",
+    "uploadProofLabel": "📸 上傳你的進度證明：",
+    "selectImage": "📷 選擇圖片",
+    "changeImage": "更換圖片",
+    "confirmationMessage": "快速確認 - 我完成了今日挑戰！",
+    "attemptEscape": "🗝️ 嘗試逃脫",
+    "escaping": "🔄 逃脫中...",
+    "success": "🎉 打卡成功！",
+    "escaped": "🎊 恭喜！你已經逃出房間！",
+    "progressUpdate": "進度更新！已完成 {{progress}}%",
+    "backToRooms": "返回房間",
+    "checkinHours": "打卡時間：{{start}} - {{end}}",
+    "timeRemaining": "剩餘時間：{{time}}",
+    "submittedAt": "提交時間：{{time}}",
+    "comeBackTomorrow": "明天再來繼續你的逃脫挑戰！"
   }
 }

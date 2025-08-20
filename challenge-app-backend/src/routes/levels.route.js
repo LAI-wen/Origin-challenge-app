@@ -1,6 +1,6 @@
 // src/routes/levels.route.js
 const express = require('express');
-const { createLevel, getLevels, getLevelDetails, joinLevel, joinLevelByCode, updateMemberRole, removeMember, updateLevelSettings, updateLevelStatus } = require('../controllers/levels.controller');
+const { createLevel, getLevels, getLevelDetails, joinLevel, joinLevelByCode, updateMemberRole, removeMember, updateLevelSettings, updateLevelStatus, deleteLevel } = require('../controllers/levels.controller');
 const { submitCheckin, getLevelCheckins, getTodayCheckinStatus, getPlayerCheckinHistory, getRoomEscapeStatus } = require('../controllers/checkin.controller');
 const { authenticateToken } = require('../middleware/auth.middleware');
 
@@ -32,6 +32,9 @@ router.put('/:id/members/:memberId', authenticateToken, updateMemberRole);
 
 // DELETE /api/levels/:id/members/:memberId - Remove member (requires authentication)
 router.delete('/:id/members/:memberId', authenticateToken, removeMember);
+
+// DELETE /api/levels/:id - Delete level (creator only) (requires authentication)
+router.delete('/:id', authenticateToken, deleteLevel);
 
 // ========================================
 // CheckIn Routes - 打卡系統

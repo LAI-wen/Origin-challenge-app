@@ -9,6 +9,9 @@
       "Bash(npx prisma migrate dev:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\c\\dev\\Origin-challenge-app"
+    ]
   }
 }

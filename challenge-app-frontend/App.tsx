@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { LevelProvider } from './src/contexts/LevelContext';
 import LoginScreen from './src/screens/LoginScreen';
 import { LevelListScreen } from './src/screens/LevelListScreen';
+import CheckinScreen from './src/screens/CheckinScreen';
 import * as WebBrowser from 'expo-web-browser';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { 
@@ -26,6 +27,10 @@ function AppContent() {
   const { theme, toggleTheme, themeMode } = useTheme();
   const styles = useStyles(createAppStyles);
   const [showWelcome, setShowWelcome] = useState(true);
+  
+  // Navigation state
+  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'rooms' | 'checkin'>('welcome');
+  const [checkinData, setCheckinData] = useState<{levelId: string; levelName: string} | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -36,11 +41,27 @@ function AppContent() {
       // Clear local auth state
       await logout();
       console.log('🚪 User logged out successfully');
+      
+      // Reset navigation state
+      setCurrentScreen('welcome');
+      setShowWelcome(true);
     } catch (error) {
       console.error('❌ Logout error:', error);
       // Still try to logout locally even if Google sign out fails
       await logout();
+      setCurrentScreen('welcome');
+      setShowWelcome(true);
     }
+  };
+
+  const handleCheckinNavigation = (levelId: string, levelName: string) => {
+    setCheckinData({ levelId, levelName });
+    setCurrentScreen('checkin');
+  };
+
+  const handleBackToRooms = () => {
+    setCheckinData(null);
+    setCurrentScreen('rooms');
   };
 
   if (isLoading) {
@@ -56,69 +77,87 @@ function AppContent() {
   }
 
   if (user) {
-    // If user has dismissed welcome screen, show the main app
-    if (!showWelcome) {
+    // Check-in screen
+    if (currentScreen === 'checkin' && checkinData) {
       return (
         <View style={{ flex: 1 }}>
-          <LevelListScreen onNavigateToSettings={() => setShowWelcome(true)} />
+          <CheckinScreen
+            levelId={checkinData.levelId}
+            levelName={checkinData.levelName}
+            onBack={handleBackToRooms}
+            onCheckinSuccess={handleBackToRooms}
+          />
           <StatusBar style={themeMode === 'monochrome' ? 'light' : 'auto'} />
         </View>
       );
     }
 
-    // Show welcome screen with option to proceed
-    return (
-      <View style={styles.container}>
-        <PixelCard variant="elevated" style={styles.welcomeCard}>
-          <PixelText variant="h3" color="accent" weight="bold" align="center">
-            Welcome back, {user.name}! 🎯
-          </PixelText>
-          
-          <PixelText variant="body1" color="textSecondary" align="center" style={styles.subtitle}>
-            Ready for your pixel quest?
-          </PixelText>
-          
-          <View style={styles.userInfo}>
-            <PixelText variant="body2" color="text">
-              📧 {user.email}
+    // Rooms screen
+    if (currentScreen === 'rooms') {
+      return (
+        <View style={{ flex: 1 }}>
+          <LevelListScreen 
+            onNavigateToSettings={() => setCurrentScreen('welcome')}
+            onNavigateToCheckin={handleCheckinNavigation}
+          />
+          <StatusBar style={themeMode === 'monochrome' ? 'light' : 'auto'} />
+        </View>
+      );
+    }
+
+    // Welcome screen (default)  
+      return (
+        <View style={styles.container}>
+          <PixelCard variant="elevated" style={styles.welcomeCard}>
+            <PixelText variant="h3" color="accent" weight="bold" align="center">
+              Welcome back, {user.name}! 🎯
             </PixelText>
-            {user.language && (
-              <PixelText variant="caption" color="textMuted">
-                🌐 Language: {user.language}
-              </PixelText>
-            )}
-          </View>
-
-          <View style={styles.buttonContainer}>
-            <PixelButton
-              variant="primary"
-              title="🎯 Start Challenge"
-              onPress={() => setShowWelcome(false)}
-              style={styles.startButton}
-            />
-          </View>
-
-          <View style={styles.settingsContainer}>
-            <PixelButton
-              variant="outline"
-              title={`Theme: ${themeMode}`}
-              onPress={toggleTheme}
-              style={styles.settingButton}
-            />
             
-            <PixelButton
-              variant="secondary"
-              title="🚪 Logout"
-              onPress={handleLogout}
-              style={styles.settingButton}
-            />
-          </View>
-        </PixelCard>
-        
-        <StatusBar style={themeMode === 'monochrome' ? 'light' : 'auto'} />
-      </View>
-    );
-  }
+            <PixelText variant="body1" color="textSecondary" align="center" style={styles.subtitle}>
+              Ready for your escape room challenge?
+            </PixelText>
+            
+            <View style={styles.userInfo}>
+              <PixelText variant="body2" color="text">
+                📧 {user.email}
+              </PixelText>
+              {user.language && (
+                <PixelText variant="caption" color="textMuted">
+                  🌐 Language: {user.language}
+                </PixelText>
+              )}
+            </View>
+
+            <View style={styles.buttonContainer}>
+              <PixelButton
+                variant="primary"
+                title="🏠 Enter Escape Rooms"
+                onPress={() => setCurrentScreen('rooms')}
+                style={styles.startButton}
+              />
+            </View>
+
+            <View style={styles.settingsContainer}>
+              <PixelButton
+                variant="outline"
+                title={`Theme: ${themeMode}`}
+                onPress={toggleTheme}
+                style={styles.settingButton}
+              />
+              
+              <PixelButton
+                variant="secondary"
+                title="🚪 Logout"
+                onPress={handleLogout}
+                style={styles.settingButton}
+              />
+            </View>
+          </PixelCard>
+          
+          <StatusBar style={themeMode === 'monochrome' ? 'light' : 'auto'} />
+        </View>
+      );
+    }
 
   return <LoginScreen />;
 }

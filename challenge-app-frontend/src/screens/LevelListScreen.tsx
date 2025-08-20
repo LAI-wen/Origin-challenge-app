@@ -22,9 +22,10 @@ import { useTranslation } from 'react-i18next';
 
 interface LevelListScreenProps {
   onNavigateToSettings?: () => void;
+  onNavigateToCheckin?: (levelId: string, levelName: string) => void;
 }
 
-export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSettings }) => {
+export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSettings, onNavigateToCheckin }) => {
   const { user } = useAuth();
   const { levels, isLoading, error, loadLevels, createLevel, joinLevelByCode, clearError } = useLevel();
   const styles = useStyles(createLevelListStyles);
@@ -216,7 +217,7 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
     const isEscaped = !!level.completedAt;
     
     return (
-      <TouchableOpacity key={level.id} style={styles.levelCardContainer}>
+      <View key={level.id} style={styles.levelCardContainer}>
         <PixelCard variant="elevated" style={styles.levelCard}>
           {/* 🎯 房間狀態進度 */}
           <RoomProgress
@@ -268,8 +269,20 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
               </PixelText>
             </View>
           )}
+
+          {/* 🗝️ 打卡按鈕 - PLAYER 和 CREATOR 都可以打卡，只要房間未完成 */}
+          {(level.userRole === 'PLAYER' || level.userRole === 'CREATOR') && !isEscaped && onNavigateToCheckin && (
+            <View style={styles.checkinButtonContainer}>
+              <PixelButton
+                variant="primary"
+                title={t('checkin.dailyAttempt')}
+                onPress={() => onNavigateToCheckin(level.id, level.name)}
+                style={styles.checkinButton}
+              />
+            </View>
+          )}
         </PixelCard>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -527,6 +540,18 @@ const createLevelListStyles = (theme: Theme) => ({
   retryButton: {
     marginTop: theme.spacing.s,
     minWidth: 100,
+  },
+
+  // 🗝️ 打卡按鈕樣式
+  checkinButtonContainer: {
+    marginTop: theme.spacing.m,
+    paddingTop: theme.spacing.m,
+    borderTopWidth: theme.borderWidth.thin,
+    borderTopColor: theme.colors.border,
+  },
+
+  checkinButton: {
+    backgroundColor: theme.colors.accent,
   },
 });
 

@@ -60,5 +60,31 @@
     "error": "Error",
     "loadingLevels": "Loading rooms...",
     "settings": "⚙️"
+  },
+  "checkin": {
+    "dailyAttempt": "🗝️ Daily Escape Attempt",
+    "backButton": "← Back",
+    "alreadyComplete": "✅ Today's Check-in Complete!",
+    "windowClosed": "⏰ Check-in Window Closed",
+    "chooseType": "Choose Your Escape Attempt:",
+    "justDone": "Just Done",
+    "writeLog": "Write Log",
+    "photoProof": "Photo Proof",
+    "writeLogLabel": "📝 Write your escape log:",
+    "writeLogPlaceholder": "Describe what you accomplished today...",
+    "uploadProofLabel": "📸 Upload proof of your progress:",
+    "selectImage": "📷 Select Image",
+    "changeImage": "Change Image",
+    "confirmationMessage": "Quick confirmation - I completed my daily challenge!",
+    "attemptEscape": "🗝️ Attempt Escape",
+    "escaping": "🔄 Escaping...",
+    "success": "🎉 Check-in Successful!",
+    "escaped": "🎊 Congratulations! You have escaped the room!",
+    "progressUpdate": "Progress updated! {{progress}}% complete",
+    "backToRooms": "Back to Rooms",
+    "checkinHours": "Check-in hours: {{start}} - {{end}}",
+    "timeRemaining": "Time remaining: {{time}}",
+    "submittedAt": "Submitted at: {{time}}",
+    "comeBackTomorrow": "Come back tomorrow to continue your escape attempt!"
   }
 }

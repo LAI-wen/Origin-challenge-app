@@ -12,8 +12,8 @@ const prisma = require('../models/prisma');
  */
 const submitCheckin = async (req, res) => {
   try {
-    const { id: levelId } = req.params;
-    const { type, content, imageData } = req.body;
+    const { levelId } = req.params;
+    const { type, content, image } = req.body;
     const userId = req.user.id;
 
     // 驗證打卡類型
@@ -30,7 +30,7 @@ const submitCheckin = async (req, res) => {
       });
     }
 
-    if (type === 'IMAGE' && (!imageData || imageData.trim() === '')) {
+    if (type === 'IMAGE' && (!image || image.trim() === '')) {
       return res.status(400).json({ 
         error: 'Image data is required for IMAGE check-ins' 
       });
@@ -116,11 +116,11 @@ const submitCheckin = async (req, res) => {
     let imagePixelUrl = null;
     let metadata = {};
 
-    if (type === 'IMAGE' && imageData) {
+    if (type === 'IMAGE' && image) {
       // TODO: 實現圖片處理和像素化
       // 現在先儲存base64資料，稍後實現像素化處理
       imagePixelUrl = `temp_${Date.now()}.png`; // 臨時檔名
-      metadata.originalSize = imageData.length;
+      metadata.originalSize = image.length;
       metadata.processed = false;
     }
 
@@ -176,7 +176,7 @@ const submitCheckin = async (req, res) => {
  */
 const getLevelCheckins = async (req, res) => {
   try {
-    const { id: levelId } = req.params;
+    const { levelId } = req.params;
     const userId = req.user.id;
     const { date, playerId } = req.query;
 
@@ -291,15 +291,26 @@ const getLevelCheckins = async (req, res) => {
  * GET /api/levels/:id/checkins/today
  */
 const getTodayCheckinStatus = async (req, res) => {
+  // Add detailed logging to track request isolation
+  const requestId = Math.random().toString(36).substr(2, 9);
+  
   try {
-    const { id: levelId } = req.params;
-    const userId = req.user.id;
+    const requestLevelId = req.params.levelId;
+    const requestUserId = req.user.id;
+    
+    console.log(`🔍 [${requestId}] getTodayCheckinStatus START: levelId=${requestLevelId}, userId=${requestUserId}`);
 
-    // 檢查用戶權限
-    const levelMember = await prisma.levelMember.findFirst({
+    // Create new isolated variables for this request
+    const queryUserId = String(requestUserId);
+    const queryLevelId = String(requestLevelId);
+
+    // 檢查用戶權限 - 使用明確的變數名
+    console.log(`📝 [${requestId}] Querying levelMember with playerId=${queryUserId}, levelId=${queryLevelId}`);
+    
+    const foundLevelMember = await prisma.levelMember.findFirst({
       where: {
-        playerId: userId,
-        levelId: levelId,
+        playerId: queryUserId,
+        levelId: queryLevelId,
         status: 'ACTIVE'
       },
       include: {
@@ -313,56 +324,67 @@ const getTodayCheckinStatus = async (req, res) => {
       }
     });
 
-    if (!levelMember) {
+    console.log(`📝 [${requestId}] Found levelMember: ${foundLevelMember?.id}, levelName: ${foundLevelMember?.level?.name}`);
+
+    if (!foundLevelMember) {
+      console.log(`❌ [${requestId}] Access denied for levelId=${queryLevelId}`);
       return res.status(403).json({ 
         error: 'Access denied: You are not an active member of this level' 
       });
     }
 
-    // 檢查今日打卡
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // 檢查今日打卡 - 使用明確的變數名
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    const tomorrowDate = new Date(todayDate);
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
 
-    const todayCheckin = await prisma.checkIn.findFirst({
+    console.log(`📝 [${requestId}] Querying checkin with levelMemberId=${foundLevelMember.id}`);
+
+    const foundTodayCheckin = await prisma.checkIn.findFirst({
       where: {
-        levelMemberId: levelMember.id,
+        levelMemberId: foundLevelMember.id,
         createdAt: {
-          gte: today,
-          lt: tomorrow
+          gte: todayDate,
+          lt: tomorrowDate
         }
       }
     });
 
-    // 計算時間窗口資訊
-    const now = new Date();
-    const currentTime = now.toTimeString().slice(0, 5);
-    const rule = levelMember.level.rule;
+    console.log(`📝 [${requestId}] Found todayCheckin: ${foundTodayCheckin?.id || 'none'}`);
+
+    // 計算時間窗口資訊 - 使用明確的變數名
+    const currentDate = new Date();
+    const formattedCurrentTime = currentDate.toTimeString().slice(0, 5);
+    const levelRule = foundLevelMember.level.rule;
     
-    const timeWindow = {
-      start: rule.startTime || '00:00',
-      end: rule.endTime || '23:59',
-      current: currentTime,
-      isWithinWindow: !rule.startTime || !rule.endTime || 
-        (currentTime >= rule.startTime && currentTime <= rule.endTime)
+    const calculatedTimeWindow = {
+      start: levelRule.startTime || '00:00',
+      end: levelRule.endTime || '23:59',
+      current: formattedCurrentTime,
+      isWithinWindow: !levelRule.startTime || !levelRule.endTime || 
+        (formattedCurrentTime >= levelRule.startTime && formattedCurrentTime <= levelRule.endTime)
     };
 
-    res.json({
+    const finalResponse = {
       success: true,
-      hasCheckedIn: !!todayCheckin,
-      checkin: todayCheckin ? {
-        id: todayCheckin.id,
-        type: todayCheckin.type,
-        content: todayCheckin.content,
-        createdAt: todayCheckin.createdAt
+      hasCheckedIn: !!foundTodayCheckin,
+      checkin: foundTodayCheckin ? {
+        id: foundTodayCheckin.id,
+        type: foundTodayCheckin.type,
+        content: foundTodayCheckin.content,
+        createdAt: foundTodayCheckin.createdAt
       } : null,
-      timeWindow: timeWindow,
-      levelName: levelMember.level.name
-    });
+      timeWindow: calculatedTimeWindow,
+      levelName: foundLevelMember.level.name
+    };
+
+    console.log(`✅ [${requestId}] Response: levelName=${finalResponse.levelName}, hasCheckedIn=${finalResponse.hasCheckedIn}`);
+
+    res.json(finalResponse);
 
   } catch (error) {
-    console.error('Error checking today status:', error);
+    console.error(`❌ [${requestId}] Error checking today status:`, error);
     return res.status(500).json({ 
       error: 'Failed to check today status',
       message: process.env.NODE_ENV === 'development' ? error.message : 'Please try again'
@@ -574,7 +596,7 @@ const updateRoomProgress = async (levelId, userId) => {
  */
 const getRoomEscapeStatus = async (req, res) => {
   try {
-    const { id: levelId } = req.params;
+    const { levelId } = req.params;
     const userId = req.user.id;
 
     // 檢查用戶權限
