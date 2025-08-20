@@ -29,6 +29,55 @@ interface Level {
   memberCount?: number;
   isOwner: boolean;
   members?: LevelMember[];
+  
+  // 🔥 Escape Room fields
+  roomState?: RoomState;
+  completedAt?: string;
+}
+
+// 🏠 Room State interface based on your reference JSON
+interface RoomState {
+  scene: string;
+  theme: string;
+  items: string[];
+  progress: number;
+  locked: boolean;
+  escapeCondition: {
+    type: string;
+    target: number;
+    current: number;
+    description: string;
+  };
+  daysInRoom: number;
+  rewards?: Array<{
+    type: string;
+    item?: string;
+    unlock?: string;
+  }>;
+}
+
+// 🎯 Escape Status Response
+interface EscapeStatusResponse extends ApiResponse {
+  roomName: string;
+  escaped: boolean;
+  completedAt?: string;
+  isActive: boolean;
+  progress: {
+    current: number;
+    target: number;
+    percentage: number;
+  };
+  roomState: {
+    theme: string;
+    scene: string;
+    locked: boolean;
+    items: string[];
+    daysInRoom: number;
+  };
+  escapeCondition: {
+    description: string;
+    daysRemaining: number;
+  };
 }
 
 interface LevelMember {
@@ -254,6 +303,14 @@ class LevelService {
       method: 'DELETE',
     });
   }
+
+  /**
+   * Get room escape status for a level
+   * GET /api/levels/:id/escape-status
+   */
+  async getRoomEscapeStatus(levelId: string): Promise<EscapeStatusResponse> {
+    return this.makeRequest<EscapeStatusResponse>(`/levels/${levelId}/escape-status`);
+  }
 }
 
 export const levelService = new LevelService();
@@ -262,6 +319,8 @@ export const levelService = new LevelService();
 export type {
   Level,
   LevelMember,
+  RoomState,
+  EscapeStatusResponse,
   CreateLevelRequest,
   JoinLevelRequest,
   GetLevelsResponse,

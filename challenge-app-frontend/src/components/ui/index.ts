@@ -45,6 +45,10 @@ export {
 } from './LoadingSpinner';
 export type { LoadingSpinnerProps } from './LoadingSpinner';
 
+// 🏠 Escape Room Components
+export { default as RoomRenderer } from './RoomRenderer';
+export { default as RoomProgress } from './RoomProgress';
+
 // 重新導出樣式相關的工具
 export { useTheme, useStyles, useThemeValue } from '../../contexts/ThemeContext';
 export type { Theme, ThemeMode } from '../../styles/theme';

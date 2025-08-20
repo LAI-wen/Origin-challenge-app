@@ -97,7 +97,7 @@ export const LevelProvider = ({ children }: LevelProviderProps) => {
         // Add the new level to the list with correct ownership data
         const updatedLevel = {
           ...response.level,
-          userRole: 'CREATOR',
+          userRole: 'CREATOR' as const,
           isOwner: true
         };
         setLevels(prevLevels => [updatedLevel, ...prevLevels]);

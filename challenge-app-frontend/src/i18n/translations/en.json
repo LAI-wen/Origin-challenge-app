@@ -16,5 +16,49 @@
     "error": "Error",
     "errorMessage": "An error occurred during login",
     "switchToChinese": "🌐 中文"
+  },
+  "escapeRoom": {
+    "title": "🏠 Escape Rooms",
+    "subtitle": "Complete the challenge to escape - No shortcuts allowed!",
+    "noRooms": "🏚️ No Rooms Yet",
+    "noRoomsDescription": "Create your first escape room or use an invite code to enter someone else's room and start the challenge!",
+    "buildRoom": "🏗️ Build Room",
+    "enterRoom": "🗝️ Enter Room",
+    "createNewRoom": "🏗️ Build New Room",
+    "roomName": "Room Name",
+    "roomNamePlaceholder": "Give your escape room a name...",
+    "roomDescription": "Room Description",
+    "roomDescriptionPlaceholder": "Describe the challenge in this room...",
+    "joinRoom": "🗝️ Enter Room",
+    "inviteCode": "Room Invite Code",
+    "inviteCodePlaceholder": "Enter 8-character room code...",
+    "cancel": "Cancel",
+    "create": "Build Room",
+    "join": "Enter Room",
+    "members": "Trapped Members",
+    "inviteCodeLabel": "Room Invite Code:",
+    "locked": "🔒 LOCKED",
+    "unlocked": "🔓 UNLOCKED",
+    "escapeProgress": "Escape Progress",
+    "escapeCondition": "Check in for {{target}} consecutive days to escape",
+    "roomTheme": "🏠 Room Theme:",
+    "daysTrapped": "📅 Days Trapped:",
+    "days": "days",
+    "roomItems": "📦 Room Items:",
+    "items": "items",
+    "escaped": "🎉 Successfully escaped on {{date}}!",
+    "congratulations": "🏆 Congratulations! You have successfully escaped this room!",
+    "progressMessages": {
+      "today": "You can escape today!",
+      "soon": "Only {{days}} days left to escape!",
+      "remaining": "{{days}} days remaining to escape"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "retry": "Retry",
+    "error": "Error",
+    "loadingLevels": "Loading rooms...",
+    "settings": "⚙️"
   }
 }

@@ -12,11 +12,13 @@ import {
   PixelCard,
   PixelInput,
   LoadingSpinner,
+  RoomProgress,
   useStyles,
 } from '../components/ui';
 import { useLevel } from '../contexts/LevelContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Theme } from '../styles/theme';
+import { useTranslation } from 'react-i18next';
 
 interface LevelListScreenProps {
   onNavigateToSettings?: () => void;
@@ -26,6 +28,7 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
   const { user } = useAuth();
   const { levels, isLoading, error, loadLevels, createLevel, joinLevelByCode, clearError } = useLevel();
   const styles = useStyles(createLevelListStyles);
+  const { t } = useTranslation();
   
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showJoinForm, setShowJoinForm] = useState(false);
@@ -98,12 +101,12 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
     return (
       <PixelCard variant="outlined" style={styles.formCard}>
         <PixelText variant="h5" weight="bold" color="accent" style={styles.formTitle}>
-          Create New Level
+          {t('escapeRoom.createNewRoom')}
         </PixelText>
         
         <PixelInput
-          label="Level Name *"
-          placeholder="Enter level name..."
+          label={`${t('escapeRoom.roomName')} *`}
+          placeholder={t('escapeRoom.roomNamePlaceholder')}
           value={newLevelName}
           onChangeText={setNewLevelName}
           required
@@ -111,8 +114,8 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
         />
         
         <PixelInput
-          label="Description"
-          placeholder="Optional description..."
+          label={t('escapeRoom.roomDescription')}
+          placeholder={t('escapeRoom.roomDescriptionPlaceholder')}
           value={newLevelDescription}
           onChangeText={setNewLevelDescription}
           multiline
@@ -123,13 +126,13 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
         <View style={styles.formActions}>
           <PixelButton
             variant="outline"
-            title="Cancel"
+            title={t('escapeRoom.cancel')}
             onPress={() => setShowCreateForm(false)}
             style={styles.formButton}
           />
           <PixelButton
             variant="primary"
-            title="Create"
+            title={t('escapeRoom.create')}
             onPress={handleCreateLevel}
             loading={createLoading}
             disabled={!newLevelName.trim()}
@@ -146,12 +149,12 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
     return (
       <PixelCard variant="outlined" style={styles.formCard}>
         <PixelText variant="h5" weight="bold" color="accent" style={styles.formTitle}>
-          Join Level
+          {t('escapeRoom.joinRoom')}
         </PixelText>
         
         <PixelInput
-          label="Invite Code *"
-          placeholder="Enter 8-character code..."
+          label={`${t('escapeRoom.inviteCode')} *`}
+          placeholder={t('escapeRoom.inviteCodePlaceholder')}
           value={joinCode}
           onChangeText={setJoinCode}
           maxLength={8}
@@ -163,13 +166,13 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
         <View style={styles.formActions}>
           <PixelButton
             variant="outline"
-            title="Cancel"
+            title={t('escapeRoom.cancel')}
             onPress={() => setShowJoinForm(false)}
             style={styles.formButton}
           />
           <PixelButton
             variant="primary"
-            title="Join"
+            title={t('escapeRoom.join')}
             onPress={handleJoinLevel}
             loading={joinLoading}
             disabled={!joinCode.trim()}
@@ -187,48 +190,84 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
       isOwner: level.isOwner,
       userRole: level.userRole,
       inviteCode: level.inviteCode,
-      hasInviteCode: !!level.inviteCode
+      hasInviteCode: !!level.inviteCode,
+      roomState: level.roomState,
+      completedAt: level.completedAt
     });
+
+    // 🏠 生成預設房間狀態 (如果後端沒有提供)
+    const defaultRoomState = {
+      scene: "default_room",
+      theme: "classic",
+      items: [],
+      progress: 0,
+      locked: true,
+      escapeCondition: {
+        type: "daily_checkin",
+        target: 30,
+        current: 0,
+        description: "連續打卡30天即可逃出房間"
+      },
+      daysInRoom: 0,
+      rewards: []
+    };
+
+    const roomState = level.roomState || defaultRoomState;
+    const isEscaped = !!level.completedAt;
     
     return (
       <TouchableOpacity key={level.id} style={styles.levelCardContainer}>
         <PixelCard variant="elevated" style={styles.levelCard}>
+          {/* 🎯 房間狀態進度 */}
+          <RoomProgress
+            roomState={roomState}
+            levelName={level.name}
+            showDetails={false}
+          />
+          
+          {/* 原有的關卡資訊 */}
           <View style={styles.levelHeader}>
-          <PixelText variant="h6" weight="bold" color="text">
-            {level.name}
-          </PixelText>
-          <View style={styles.roleContainer}>
-            <PixelText variant="caption" color="accent" transform="uppercase">
-              {level.userRole}
+            <View style={styles.roleContainer}>
+              <PixelText variant="caption" color="accent" transform="uppercase">
+                {level.userRole}
+              </PixelText>
+            </View>
+          </View>
+          
+          {level.description && (
+            <PixelText variant="body2" color="textSecondary" style={styles.levelDescription}>
+              {level.description}
+            </PixelText>
+          )}
+          
+          <View style={styles.levelStats}>
+            <PixelText variant="caption" color="textMuted">
+              👥 {level.memberCount || 0} {t('escapeRoom.members')}
+            </PixelText>
+            <PixelText variant="caption" color="textMuted">
+              📅 {new Date(level.createdAt).toLocaleDateString()}
             </PixelText>
           </View>
-        </View>
-        
-        {level.description && (
-          <PixelText variant="body2" color="textSecondary" style={styles.levelDescription}>
-            {level.description}
-          </PixelText>
-        )}
-        
-        <View style={styles.levelStats}>
-          <PixelText variant="caption" color="textMuted">
-            👥 {level.memberCount || 0} members
-          </PixelText>
-          <PixelText variant="caption" color="textMuted">
-            📅 {new Date(level.createdAt).toLocaleDateString()}
-          </PixelText>
-        </View>
-        
-        {(level.isOwner || level.userRole === 'CREATOR') && level.inviteCode && (
-          <View style={styles.inviteCodeContainer}>
-            <PixelText variant="caption" color="textSecondary">
-              Invite Code:
-            </PixelText>
-            <PixelText variant="body2" color="accent" weight="bold" monospace>
-              {level.inviteCode}
-            </PixelText>
-          </View>
-        )}
+
+          {/* 🎊 逃脫成功標記 */}
+          {isEscaped && (
+            <View style={styles.escapedBanner}>
+              <PixelText variant="caption" color="success" align="center" weight="bold">
+                {t('escapeRoom.escaped', { date: new Date(level.completedAt).toLocaleDateString() })}
+              </PixelText>
+            </View>
+          )}
+          
+          {(level.isOwner || level.userRole === 'CREATOR') && level.inviteCode && (
+            <View style={styles.inviteCodeContainer}>
+              <PixelText variant="caption" color="textSecondary">
+                {t('escapeRoom.inviteCodeLabel')}
+              </PixelText>
+              <PixelText variant="body2" color="accent" weight="bold" monospace>
+                {level.inviteCode}
+              </PixelText>
+            </View>
+          )}
         </PixelCard>
       </TouchableOpacity>
     );
@@ -237,10 +276,10 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <PixelText variant="h5" color="textMuted" align="center">
-        🎮 No Levels Yet
+        {t('escapeRoom.noRooms')}
       </PixelText>
       <PixelText variant="body1" color="textSecondary" align="center" style={styles.emptyDescription}>
-        Create your first challenge level or join an existing one to get started!
+        {t('escapeRoom.noRoomsDescription')}
       </PixelText>
     </View>
   );
@@ -255,7 +294,7 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
         </PixelText>
         <PixelButton
           variant="outline"
-          title="Retry"
+          title={t('common.retry')}
           onPress={handleRefresh}
           size="small"
           style={styles.retryButton}
@@ -270,15 +309,15 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
         <View style={styles.headerContent}>
           <View style={styles.titleSection}>
             <PixelText variant="h3" weight="bold" color="accent">
-              🎯 Challenge Levels
+              {t('escapeRoom.title')}
             </PixelText>
             <PixelText variant="body2" color="textSecondary">
-              Manage your habit challenges
+              {t('escapeRoom.subtitle')}
             </PixelText>
           </View>
           <PixelButton
             variant="ghost"
-            title="⚙️"
+            title={t('common.settings')}
             onPress={() => {
               if (onNavigateToSettings) {
                 onNavigateToSettings();
@@ -294,7 +333,7 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
       <View style={styles.actionBar}>
         <PixelButton
           variant="primary"
-          title="+ Create"
+          title={t('escapeRoom.buildRoom')}
           onPress={() => {
             setShowCreateForm(true);
             setShowJoinForm(false);
@@ -303,7 +342,7 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
         />
         <PixelButton
           variant="outline"
-          title="🔗 Join"
+          title={t('escapeRoom.enterRoom')}
           onPress={() => {
             setShowJoinForm(true);
             setShowCreateForm(false);
@@ -332,7 +371,7 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
           <LoadingSpinner
             variant="bars"
             size="medium"
-            text="Loading levels..."
+            text={t('common.loadingLevels')}
           />
         ) : levels.length > 0 ? (
           levels.map(renderLevelCard)
@@ -455,6 +494,15 @@ const createLevelListStyles = (theme: Theme) => ({
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
     alignItems: 'center' as const,
+  },
+
+  // 🎊 逃脫成功標記樣式
+  escapedBanner: {
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.s,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.success,
+    marginBottom: theme.spacing.s,
   },
   
   // 空狀態樣式

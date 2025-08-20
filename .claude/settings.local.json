@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(rm:*)",
-      "Bash(npx expo run:android:*)"
+      "Bash(npx expo run:android:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm test)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma migrate dev:*)"
     ],
     "deny": [],
     "ask": []

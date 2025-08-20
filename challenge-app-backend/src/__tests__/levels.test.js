@@ -673,7 +673,10 @@ describe('POST /api/levels/:id/join', () => {
       startDate: new Date('2025-08-20T00:00:00Z'),
       endDate: new Date('2025-09-20T00:00:00Z'),
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      _count: {
+        levelMembers: 2
+      }
     };
 
     const mockCreatedMember = {
@@ -710,7 +713,18 @@ describe('POST /api/levels/:id/join', () => {
 
     // Verify database calls
     expect(prisma.level.findUnique).toHaveBeenCalledWith({
-      where: { id: 'test-level-id' }
+      where: { id: 'test-level-id' },
+      include: {
+        _count: {
+          select: {
+            levelMembers: {
+              where: {
+                status: 'ACTIVE'
+              }
+            }
+          }
+        }
+      }
     });
 
     expect(prisma.levelMember.findFirst).toHaveBeenCalledWith({
@@ -773,7 +787,10 @@ describe('POST /api/levels/:id/join', () => {
       startDate: new Date('2025-08-20T00:00:00Z'),
       endDate: new Date('2025-09-20T00:00:00Z'),
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      _count: {
+        levelMembers: 1
+      }
     };
 
     const mockCreatedMember = {

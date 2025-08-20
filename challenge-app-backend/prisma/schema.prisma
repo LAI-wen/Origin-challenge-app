@@ -1,6 +1,3 @@
-// 8-Bit Habits Database Schema V3.0
-// 整合原有設計優點與新規格需求
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,216 +7,178 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ========================================
-// 核心實體 (Core Entities)
-// ========================================
-
 model Player {
-  id                String           @id @default(uuid()) @db.Uuid
-  email             String           @unique
-  name              String
-  avatarUrl         String?
-  googleId          String?          @unique
-  language          String           @default("zh-TW")
-  pixelAbodeState   Json             @default("{\"scene\":\"default_room\",\"items\":[],\"layout\":{}}")
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  
-  // 關聯
-  ownedLevels       Level[]          @relation("LevelOwner")
-  levelMembers      LevelMember[]
-  keepNotes         KeepNote[]
+  id                 String              @id @default(uuid()) @db.Uuid
+  email              String              @unique
+  name               String
+  avatarUrl          String?
+  googleId           String?             @unique
+  language           String              @default("zh-TW")
+  pixelAbodeState    Json                @default("{\"items\": [], \"scene\": \"default_room\", \"layout\": {}}")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  keepNotes          KeepNote[]
+  levelMembers       LevelMember[]
+  ownedLevels        Level[]             @relation("LevelOwner")
   playerAchievements PlayerAchievement[]
-  
+
   @@map("players")
 }
 
 model Level {
-  id                String           @id @default(uuid()) @db.Uuid
-  name              String
-  description       String?
-  inviteCode        String           @unique @db.VarChar(8)
-  ownerId           String           @db.Uuid
-  isActive          Boolean          @default(true)
-  rule              Json             @default("{\"maxMissedDays\":3,\"startTime\":\"05:00\",\"endTime\":\"23:00\"}")
-  settings          Json             @default("{\"habitType\":\"generic\",\"checkinContentVisibility\":\"public\"}")
-  startDate         DateTime         @default(now())
-  endDate           DateTime?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  
-  // 關聯
-  owner             Player           @relation("LevelOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  levelMembers      LevelMember[]
-  quiz              Quiz?
-  
+  id           String        @id @default(uuid()) @db.Uuid
+  name         String        // 房間名稱 e.g. "30天讀書挑戰室"
+  description  String?
+  inviteCode   String        @unique @db.VarChar(8)
+  ownerId      String        @db.Uuid
+  isActive     Boolean       @default(true)
+  rule         Json          @default("{\"endTime\": \"23:00\", \"startTime\": \"05:00\", \"maxMissedDays\": 3}")
+  settings     Json          @default("{\"habitType\": \"generic\", \"checkinContentVisibility\": \"public\"}")
+  roomState    Json          @default("{\"scene\":\"default_room\",\"theme\":\"classic\",\"items\":[],\"progress\":0,\"locked\":true}")
+  startDate    DateTime      @default(now())
+  endDate      DateTime?
+  completedAt  DateTime?     // 房間解鎖時間
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  levelMembers LevelMember[]
+  owner        Player        @relation("LevelOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  quiz         Quiz?
+
   @@map("levels")
 }
 
 model LevelMember {
-  id                String           @id @default(uuid()) @db.Uuid
-  playerId          String           @db.Uuid
-  levelId           String           @db.Uuid
-  role              Role             @default(PLAYER)
-  status            MemberStatus     @default(ACTIVE)
-  missedDays        Int              @default(0)
-  joinedAt          DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  
-  // 關聯
-  player            Player           @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  level             Level            @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  checkIns          CheckIn[]
-  quizAttempts      QuizAttempt[]
-  
+  id           String        @id @default(uuid()) @db.Uuid
+  playerId     String        @db.Uuid
+  levelId      String        @db.Uuid
+  role         Role          @default(PLAYER)
+  status       MemberStatus  @default(ACTIVE)
+  missedDays   Int           @default(0)
+  joinedAt     DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  checkIns     CheckIn[]
+  level        Level         @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  player       Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  quizAttempts QuizAttempt[]
+
   @@unique([playerId, levelId])
   @@map("level_members")
 }
 
 model CheckIn {
-  id                String           @id @default(uuid()) @db.Uuid
-  levelMemberId     String           @db.Uuid
-  type              CheckInType      @default(TEXT)
-  content           String?
-  imagePixelUrl     String?
-  metadata          Json?            @default("{}")
-  createdAt         DateTime         @default(now())
-  
-  // 關聯
-  levelMember       LevelMember      @relation(fields: [levelMemberId], references: [id], onDelete: Cascade)
-  
+  id            String      @id @default(uuid()) @db.Uuid
+  levelMemberId String      @db.Uuid
+  type          CheckInType @default(TEXT)
+  content       String?
+  imagePixelUrl String?
+  metadata      Json?       @default("{}")
+  createdAt     DateTime    @default(now())
+  levelMember   LevelMember @relation(fields: [levelMemberId], references: [id], onDelete: Cascade)
+
   @@map("check_ins")
 }
 
 model KeepNote {
-  id                String           @id @default(uuid()) @db.Uuid
-  playerId          String           @db.Uuid
-  content           String
-  tags              String[]         @default([])
-  color             String?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  
-  // 關聯
-  player            Player           @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  
+  id        String   @id @default(uuid()) @db.Uuid
+  playerId  String   @db.Uuid
+  content   String
+  tags      String[] @default([])
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
   @@map("keep_notes")
 }
 
-// ========================================
-// 成就系統 (Achievement System)
-// ========================================
-
 model Achievement {
-  id                String           @id @default(uuid()) @db.Uuid
-  name              String
-  description       String
-  iconName          String
-  triggerRule       Json             @default("{\"type\":\"manual\"}")
-  isActive          Boolean          @default(true)
-  createdAt         DateTime         @default(now())
-  
-  // 關聯
+  id                 String              @id @default(uuid()) @db.Uuid
+  name               String
+  description        String
+  iconName           String
+  triggerRule        Json                @default("{\"type\": \"manual\"}")
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
   playerAchievements PlayerAchievement[]
-  
+
   @@map("achievements")
 }
 
 model PlayerAchievement {
-  id                String           @id @default(uuid()) @db.Uuid
-  playerId          String           @db.Uuid
-  achievementId     String           @db.Uuid
-  levelId           String?          @db.Uuid
-  unlockedAt        DateTime         @default(now())
-  
-  // 關聯
-  player            Player           @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  achievement       Achievement      @relation(fields: [achievementId], references: [id], onDelete: Cascade)
-  
+  id            String      @id @default(uuid()) @db.Uuid
+  playerId      String      @db.Uuid
+  achievementId String      @db.Uuid
+  levelId       String?     @db.Uuid
+  unlockedAt    DateTime    @default(now())
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  player        Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
   @@unique([playerId, achievementId])
   @@map("player_achievements")
 }
 
-// ========================================
-// 測驗系統 (Quiz System)
-// ========================================
-
 model Quiz {
-  id                String           @id @default(uuid()) @db.Uuid
-  levelId           String           @unique @db.Uuid
-  title             String
-  description       String?
-  isActive          Boolean          @default(true)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  
-  // 關聯
-  level             Level            @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  questions         QuizQuestion[]
-  attempts          QuizAttempt[]
-  
+  id          String         @id @default(uuid()) @db.Uuid
+  levelId     String         @unique @db.Uuid
+  title       String
+  description String?
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  attempts    QuizAttempt[]
+  questions   QuizQuestion[]
+  level       Level          @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
   @@map("quizzes")
 }
 
 model QuizQuestion {
-  id                String           @id @default(uuid()) @db.Uuid
-  quizId            String           @db.Uuid
-  questionText      String
-  options           Json             @default("[]")
-  correctAnswer     String
-  order             Int              @default(0)
-  
-  // 關聯
-  quiz              Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  
+  id            String @id @default(uuid()) @db.Uuid
+  quizId        String @db.Uuid
+  questionText  String
+  options       Json   @default("[]")
+  correctAnswer String
+  order         Int    @default(0)
+  quiz          Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
   @@map("quiz_questions")
 }
 
 model QuizAttempt {
-  id                String           @id @default(uuid()) @db.Uuid
-  levelMemberId     String           @db.Uuid
-  quizId            String           @db.Uuid
-  score             Int
-  answers           Json             @default("{}")
-  completedAt       DateTime         @default(now())
-  
-  // 關聯
-  levelMember       LevelMember      @relation(fields: [levelMemberId], references: [id], onDelete: Cascade)
-  quiz              Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  
+  id            String      @id @default(uuid()) @db.Uuid
+  levelMemberId String      @db.Uuid
+  quizId        String      @db.Uuid
+  score         Int
+  answers       Json        @default("{}")
+  completedAt   DateTime    @default(now())
+  levelMember   LevelMember @relation(fields: [levelMemberId], references: [id], onDelete: Cascade)
+  quiz          Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
   @@map("quiz_attempts")
 }
 
-// ========================================
-// 社交系統 (Social System) - Future
-// ========================================
-
 model Friendship {
-  id                String           @id @default(uuid()) @db.Uuid
-  requesterId       String           @db.Uuid
-  addresseeId       String           @db.Uuid
-  status            FriendshipStatus @default(PENDING)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  
+  id          String           @id @default(uuid()) @db.Uuid
+  requesterId String           @db.Uuid
+  addresseeId String           @db.Uuid
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
   @@unique([requesterId, addresseeId])
   @@map("friendships")
 }
 
 model Notification {
-  id                String           @id @default(uuid()) @db.Uuid
-  recipientId       String           @db.Uuid
-  type              String
-  content           Json             @default("{}")
-  isRead            Boolean          @default(false)
-  createdAt         DateTime         @default(now())
-  
+  id          String   @id @default(uuid()) @db.Uuid
+  recipientId String   @db.Uuid
+  type        String
+  content     Json     @default("{}")
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
   @@map("notifications")
 }
-
-// ========================================
-// 枚舉定義 (Enums)
-// ========================================
 
 enum Role {
   CREATOR

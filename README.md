@@ -1,10 +1,10 @@
-# 8-Bit Habits 
+# 8-Bit Habits - Escape Room Challenge
 
-A gamified habit-tracking app with retro pixel aesthetics that transforms habit building into an exciting survival challenge.
+A gamified habit-tracking app with retro pixel aesthetics featuring **escape room mechanics** where users must complete daily challenges to escape locked rooms.
 
 ## 🎮 Project Overview
 
-"8-Bit Habits" combines habit formation with survival game mechanics, featuring group challenges, automatic elimination for missed check-ins, and a nostalgic pixel-art visual style.
+"8-Bit Habits" transforms habit formation into an **escape room survival challenge**. Users are trapped in pixel-art themed rooms and must complete 30 consecutive daily check-ins to unlock their escape. The concept follows the motto "不oo就出不去的房間" (No way out until completion).
 
 ## ✅ Development Status
 
@@ -13,15 +13,21 @@ A gamified habit-tracking app with retro pixel aesthetics that transforms habit 
 - ✅ **Frontend Setup**: React Native (Expo) with cross-platform support
 - ✅ **Google OAuth**: Complete authentication system with @react-native-google-signin
 - ✅ **Multi-language**: i18n support (Traditional Chinese / English)
-- ✅ **Database V3.0**: Enhanced schema with pixel abode, achievements, and social systems
 - ✅ **Development Tools**: ESLint, Prettier, Prisma Studio
 
-**Phase 2 Ready** - Database V3.0 Architecture
-- 🆕 **Pixel Abode System**: JSON-based player customization state
+**Phase 2 Complete** - Escape Room Challenge System
+- ✅ **Escape Room Database**: Enhanced schema with room state management
+- ✅ **Room Progress Tracking**: JSON-based room state with progress monitoring
+- ✅ **Challenge Validation**: 30-day consecutive check-in requirement
+- ✅ **Room Visualization**: Pixel-art room renderer with lock/unlock states
+- ✅ **API Integration**: Backend endpoints for room escape status
+- ✅ **Frontend Components**: Complete UI for room management and progress display
+
+**Phase 3 Ready** - Enhanced Features
 - 🆕 **Achievement System**: Comprehensive player progress tracking  
 - 🆕 **Quiz System**: Challenge validation with boss battles
 - 🆕 **Social Foundation**: Friendship and notification systems
-- 🔄 **Migration Ready**: Safe upgrade path from V1.0 to V3.0
+- 🔄 **Advanced Room Themes**: Multiple room designs and escape mechanics
 
 ## 🏗️ Architecture
 
@@ -185,7 +191,7 @@ npm run format        # Run Prettier
 - Check console logs for authentication debugging
 - Use Prisma Studio to monitor database changes in real-time
 
-## 🎯 Current Features (Phase 1)
+## 🎯 Current Features (Phase 1-2)
 
 ### ✅ Authentication System
 - **Google OAuth 2.0** integration with official @react-native-google-signin
@@ -193,24 +199,34 @@ npm run format        # Run Prettier
 - **JWT token management** with secure local storage
 - **Cross-platform support** (Android native, Web fallback)
 
-### ✅ Multi-language Support
+### ✅ Escape Room Challenge System
+- **Room Creation**: Users can build escape rooms with custom names and descriptions
+- **Room Entry**: Join escape rooms using 8-character invite codes
+- **30-Day Challenge**: Complete 30 consecutive daily check-ins to escape
+- **Progress Tracking**: Real-time room state management with JSON-based storage
+- **Room Visualization**: Pixel-art renderer showing lock status and progress
+- **Escape Status API**: Backend endpoints for tracking room escape progress
+
+### ✅ Multi-language Support (i18n)
 - **Internationalization** with react-i18next
-- **Language switching** between Traditional Chinese and English
+- **Bilingual Support**: Traditional Chinese and English translations
+- **Complete Coverage**: All UI components, room features, and escape mechanics
 - **Automatic language detection** based on system locale
 
 ### ✅ Database Management
 - **PostgreSQL** database with Docker containerization
 - **Prisma ORM** with type-safe database operations
-- **User profile management** with Google integration
+- **Room State Schema**: JSON fields for complex room state management
+- **Progress Tracking**: Room completion timestamps and member tracking
 - **Prisma Studio** for database administration
 
 ### 🔄 Planned Features (Future Phases)
-- Challenge Levels with custom rules and invite codes
-- Daily Check-ins with text, image, or checkmark options
-- Automatic elimination for missed check-ins
-- Role-based system (Creator/Player/Audience)
-- Privacy controls for check-in content visibility
-- Web admin panel for level creators
+- **Daily Check-ins**: Text, image, or checkmark submission options
+- **Advanced Room Themes**: Multiple visual styles and escape mechanics
+- **Achievement System**: Badges and rewards for completed escapes
+- **Social Features**: Friend systems and room sharing
+- **Quiz Integration**: Challenge validation with boss battles
+- **Web Admin Panel**: Enhanced room management interface
 
 ## 🔧 Development
 

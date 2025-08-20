@@ -16,5 +16,49 @@
     "error": "錯誤",
     "errorMessage": "登入過程中發生錯誤",
     "switchToEnglish": "🌐 English"
+  },
+  "escapeRoom": {
+    "title": "🏠 逃脫房間",
+    "subtitle": "不oo就出不去的房間 - 完成挑戰才能逃脫",
+    "noRooms": "🏚️ 還沒有房間",
+    "noRoomsDescription": "建造你的第一個逃脫房間，或使用邀請碼進入其他人的房間開始挑戰！",
+    "buildRoom": "🏗️ 建造房間",
+    "enterRoom": "🗝️ 進入房間",
+    "createNewRoom": "🏗️ 建造新房間",
+    "roomName": "房間名稱",
+    "roomNamePlaceholder": "給你的逃脫房間起個名字...",
+    "roomDescription": "房間描述",
+    "roomDescriptionPlaceholder": "描述一下這個房間的挑戰...",
+    "joinRoom": "🗝️ 進入房間",
+    "inviteCode": "房間邀請碼",
+    "inviteCodePlaceholder": "輸入8位房間邀請碼...",
+    "cancel": "取消",
+    "create": "建造房間",
+    "join": "進入房間",
+    "members": "被困者",
+    "inviteCodeLabel": "房間邀請碼:",
+    "locked": "🔒 LOCKED",
+    "unlocked": "🔓 UNLOCKED",
+    "escapeProgress": "逃脫進度",
+    "escapeCondition": "連續打卡{{target}}天即可逃出房間",
+    "roomTheme": "🏠 房間主題:",
+    "daysTrapped": "📅 已困天數:",
+    "days": "天",
+    "roomItems": "📦 房間物品:",
+    "items": "個",
+    "escaped": "🎉 已於 {{date}} 成功逃脫！",
+    "congratulations": "🏆 恭喜！你已經成功逃出這個房間！",
+    "progressMessages": {
+      "today": "今天就能逃出房間了！",
+      "soon": "還有 {{days}} 天就能逃出了！",
+      "remaining": "還需要 {{days}} 天才能逃出房間"
+    }
+  },
+  "common": {
+    "loading": "載入中...",
+    "retry": "重試",
+    "error": "錯誤",
+    "loadingLevels": "載入房間中...",
+    "settings": "⚙️"
   }
 }
