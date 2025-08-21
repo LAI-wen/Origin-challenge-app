@@ -48,6 +48,7 @@
     "items": "items",
     "escaped": "🎉 Successfully escaped on {{date}}!",
     "congratulations": "🏆 Congratulations! You have successfully escaped this room!",
+    "theme": "Theme",
     "progressMessages": {
       "today": "You can escape today!",
       "soon": "Only {{days}} days left to escape!",

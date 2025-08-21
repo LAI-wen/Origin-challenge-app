@@ -13,6 +13,7 @@ import {
   PixelInput,
   LoadingSpinner,
   RoomProgress,
+  PixelRoomRenderer,
   useStyles,
 } from '../components/ui';
 import { useLevel } from '../contexts/LevelContext';
@@ -219,6 +220,18 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
     return (
       <View key={level.id} style={styles.levelCardContainer}>
         <PixelCard variant="elevated" style={styles.levelCard}>
+          {/* 🎨 像素房間視覺化 */}
+          <PixelRoomRenderer
+            roomState={roomState}
+            levelName={level.name}
+            width={280}
+            height={180}
+            animated={true}
+            onElementPress={(element) => {
+              console.log(`Clicked on ${element} in room ${level.name}`);
+            }}
+          />
+          
           {/* 🎯 房間狀態進度 */}
           <RoomProgress
             roomState={roomState}
