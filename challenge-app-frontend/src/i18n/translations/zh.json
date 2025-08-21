@@ -58,6 +58,10 @@
     "loading": "載入中...",
     "retry": "重試",
     "error": "錯誤",
+    "success": "成功",
+    "cancel": "取消",
+    "delete": "刪除",
+    "ok": "確定",
     "loadingLevels": "載入房間中...",
     "settings": "⚙️"
   },
@@ -86,5 +90,13 @@
     "timeRemaining": "剩餘時間：{{time}}",
     "submittedAt": "提交時間：{{time}}",
     "comeBackTomorrow": "明天再來繼續你的逃脫挑戰！"
+  },
+  "roomSettings": {
+    "title": "🏠 房間設定",
+    "roomInfo": "房間資訊",
+    "deleteRoom": "🗑️ 刪除房間",
+    "deleteConfirmation": "確定要刪除「{{roomName}}」嗎？\n\n⚠️ 此操作無法復原，所有打卡記錄都會被刪除。",
+    "deleteSuccess": "房間已成功刪除",
+    "onlyCreator": "只有房間創建者可以刪除房間"
   }
 }

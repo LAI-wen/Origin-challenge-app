@@ -23,11 +23,18 @@ A gamified habit-tracking app with retro pixel aesthetics featuring **escape roo
 - ✅ **API Integration**: Backend endpoints for room escape status
 - ✅ **Frontend Components**: Complete UI for room management and progress display
 
-**Phase 3 Ready** - Enhanced Features
+**Phase 3 Complete** - Daily Check-in System
+- ✅ **Daily Check-ins**: Complete TEXT/IMAGE/CHECKMARK submission system
+- ✅ **Cross-room Isolation**: Fixed state confusion between different rooms
+- ✅ **Creator Check-ins**: Room creators can check into their own rooms
+- ✅ **Room Management**: Delete room functionality with proper ownership validation
+- ✅ **Mobile Optimization**: Android emulator testing and image upload support
+
+**Phase 4 Ready** - Enhanced Features
 - 🆕 **Achievement System**: Comprehensive player progress tracking  
 - 🆕 **Quiz System**: Challenge validation with boss battles
 - 🆕 **Social Foundation**: Friendship and notification systems
-- 🔄 **Advanced Room Themes**: Multiple room designs and escape mechanics
+- 🔄 **Pixel Room Visualization**: Interactive room renderer with progress display
 
 ## 🏗️ Architecture
 
@@ -207,6 +214,14 @@ npm run format        # Run Prettier
 - **Room Visualization**: Pixel-art renderer showing lock status and progress
 - **Escape Status API**: Backend endpoints for tracking room escape progress
 
+### ✅ Daily Check-in System
+- **Three Check-in Types**: TEXT (journal), IMAGE (photo), CHECKMARK (simple)
+- **Mobile Image Upload**: Camera and gallery integration with expo-image-picker
+- **Time Window Validation**: Ensure check-ins only during specified hours
+- **Cross-room State Isolation**: Proper separation of check-in status between rooms
+- **Creator Participation**: Room creators can check into their own rooms
+- **Room Management**: Delete rooms with ownership validation
+
 ### ✅ Multi-language Support (i18n)
 - **Internationalization** with react-i18next
 - **Bilingual Support**: Traditional Chinese and English translations
@@ -221,7 +236,7 @@ npm run format        # Run Prettier
 - **Prisma Studio** for database administration
 
 ### 🔄 Planned Features (Future Phases)
-- **Daily Check-ins**: Text, image, or checkmark submission options
+- **Pixel Room Visualization**: Interactive room renderer with animated progress display
 - **Advanced Room Themes**: Multiple visual styles and escape mechanics
 - **Achievement System**: Badges and rewards for completed escapes
 - **Social Features**: Friend systems and room sharing

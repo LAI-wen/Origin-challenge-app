@@ -19,10 +19,12 @@ import {
 import { Theme } from '../styles/theme';
 import { useTranslation } from 'react-i18next';
 import { checkinService, CheckinRequest, TodayStatus } from '../services/checkin.service';
+import { levelService } from '../services/level.service';
 
 interface CheckinScreenProps {
   levelId: string;
   levelName: string;
+  userRole: string;
   onBack: () => void;
   onCheckinSuccess?: () => void;
 }
@@ -32,6 +34,7 @@ type CheckinType = 'TEXT' | 'IMAGE' | 'CHECKMARK';
 export const CheckinScreen: React.FC<CheckinScreenProps> = ({
   levelId,
   levelName,
+  userRole,
   onBack,
   onCheckinSuccess,
 }) => {
@@ -46,6 +49,9 @@ export const CheckinScreen: React.FC<CheckinScreenProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [todayStatus, setTodayStatus] = useState<TodayStatus | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  
+  // Room settings state
+  const [isDeletingRoom, setIsDeletingRoom] = useState(false);
 
   // Load today's status on component mount
   useEffect(() => {
@@ -176,6 +182,62 @@ export const CheckinScreen: React.FC<CheckinScreenProps> = ({
     }
   };
 
+  // Room settings functions
+  const handleRoomSettings = () => {
+    Alert.alert(
+      t('roomSettings.title'),
+      `${t('roomSettings.roomInfo')}:\n\n房間名稱：${levelName}\n你的角色：${userRole}`,
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel'
+        },
+        ...(userRole === 'CREATOR' || userRole === 'OWNER' ? [{
+          text: t('roomSettings.deleteRoom'),
+          style: 'destructive' as const,
+          onPress: handleDeleteRoom
+        }] : [])
+      ]
+    );
+  };
+
+  const handleDeleteRoom = async () => {
+    Alert.alert(
+      t('roomSettings.deleteRoom'),
+      t('roomSettings.deleteConfirmation', { roomName: levelName }),
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel'
+        },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeletingRoom(true);
+            try {
+              const response = await levelService.deleteLevel(levelId);
+              if (response.success) {
+                Alert.alert(
+                  t('common.success'),
+                  t('roomSettings.deleteSuccess'),
+                  [{ text: t('common.ok'), onPress: onBack }]
+                );
+              } else {
+                Alert.alert(t('common.error'), response.error || 'Failed to delete room');
+              }
+            } catch (error) {
+              console.error('Delete room error:', error);
+              Alert.alert(t('common.error'), 'Failed to delete room. Please try again.');
+            } finally {
+              setIsDeletingRoom(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const formatTimeRemaining = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -206,6 +268,11 @@ export const CheckinScreen: React.FC<CheckinScreenProps> = ({
           <PixelText variant="h4" weight="bold" color="accent" align="center">
             ✅ {levelName}
           </PixelText>
+          {(userRole === 'CREATOR' || userRole === 'OWNER') && (
+            <TouchableOpacity onPress={handleRoomSettings} style={styles.settingsButton}>
+              <PixelText variant="h4" color="accent">{t('common.settings')}</PixelText>
+            </TouchableOpacity>
+          )}
         </View>
 
         <PixelCard variant="elevated" style={styles.completedCard}>
@@ -261,6 +328,11 @@ export const CheckinScreen: React.FC<CheckinScreenProps> = ({
           <PixelText variant="h4" weight="bold" color="accent" align="center">
             🔒 {levelName}
           </PixelText>
+          {(userRole === 'CREATOR' || userRole === 'OWNER') && (
+            <TouchableOpacity onPress={handleRoomSettings} style={styles.settingsButton}>
+              <PixelText variant="h4" color="accent">{t('common.settings')}</PixelText>
+            </TouchableOpacity>
+          )}
         </View>
 
         <PixelCard variant="outlined" style={styles.closedCard}>
@@ -297,6 +369,11 @@ export const CheckinScreen: React.FC<CheckinScreenProps> = ({
         <PixelText variant="h4" weight="bold" color="accent" align="center">
           🗝️ {levelName}
         </PixelText>
+        {(userRole === 'CREATOR' || userRole === 'OWNER') && (
+          <TouchableOpacity onPress={handleRoomSettings} style={styles.settingsButton}>
+            <PixelText variant="h4" color="accent">{t('common.settings')}</PixelText>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Time remaining warning */}
@@ -423,6 +500,7 @@ export const CheckinScreen: React.FC<CheckinScreenProps> = ({
           </PixelText>
         )}
       </PixelCard>
+
     </ScrollView>
   );
 };
@@ -545,6 +623,12 @@ const createCheckinScreenStyles = (theme: Theme) => ({
   backToRoomsButton: {
     margin: theme.spacing.m,
     marginTop: theme.spacing.l,
+  },
+  settingsButton: {
+    position: 'absolute' as const,
+    right: theme.spacing.m,
+    top: 0,
+    padding: theme.spacing.xs,
   },
 });
 

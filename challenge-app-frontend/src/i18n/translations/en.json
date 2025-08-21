@@ -58,6 +58,10 @@
     "loading": "Loading...",
     "retry": "Retry",
     "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "ok": "OK",
     "loadingLevels": "Loading rooms...",
     "settings": "⚙️"
   },
@@ -86,5 +90,13 @@
     "timeRemaining": "Time remaining: {{time}}",
     "submittedAt": "Submitted at: {{time}}",
     "comeBackTomorrow": "Come back tomorrow to continue your escape attempt!"
+  },
+  "roomSettings": {
+    "title": "🏠 Room Settings",
+    "roomInfo": "Room Information",
+    "deleteRoom": "🗑️ Delete Room",
+    "deleteConfirmation": "Are you sure you want to delete '{{roomName}}'?\n\n⚠️ This action cannot be undone and all check-in records will be deleted.",
+    "deleteSuccess": "Room deleted successfully",
+    "onlyCreator": "Only the room creator can delete this room"
   }
 }

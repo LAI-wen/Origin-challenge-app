@@ -305,6 +305,16 @@ class LevelService {
   }
 
   /**
+   * Delete a level (CREATOR only)
+   * DELETE /api/levels/:id
+   */
+  async deleteLevel(levelId: string): Promise<ApiResponse> {
+    return this.makeRequest<ApiResponse>(`/levels/${levelId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
    * Get room escape status for a level
    * GET /api/levels/:id/escape-status
    */

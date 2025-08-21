@@ -30,7 +30,7 @@ function AppContent() {
   
   // Navigation state
   const [currentScreen, setCurrentScreen] = useState<'welcome' | 'rooms' | 'checkin'>('welcome');
-  const [checkinData, setCheckinData] = useState<{levelId: string; levelName: string} | null>(null);
+  const [checkinData, setCheckinData] = useState<{levelId: string; levelName: string; userRole: string} | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -54,8 +54,8 @@ function AppContent() {
     }
   };
 
-  const handleCheckinNavigation = (levelId: string, levelName: string) => {
-    setCheckinData({ levelId, levelName });
+  const handleCheckinNavigation = (levelId: string, levelName: string, userRole: string) => {
+    setCheckinData({ levelId, levelName, userRole });
     setCurrentScreen('checkin');
   };
 
@@ -84,6 +84,7 @@ function AppContent() {
           <CheckinScreen
             levelId={checkinData.levelId}
             levelName={checkinData.levelName}
+            userRole={checkinData.userRole}
             onBack={handleBackToRooms}
             onCheckinSuccess={handleBackToRooms}
           />

@@ -22,7 +22,7 @@ import { useTranslation } from 'react-i18next';
 
 interface LevelListScreenProps {
   onNavigateToSettings?: () => void;
-  onNavigateToCheckin?: (levelId: string, levelName: string) => void;
+  onNavigateToCheckin?: (levelId: string, levelName: string, userRole: string) => void;
 }
 
 export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSettings, onNavigateToCheckin }) => {
@@ -276,7 +276,7 @@ export const LevelListScreen: React.FC<LevelListScreenProps> = ({ onNavigateToSe
               <PixelButton
                 variant="primary"
                 title={t('checkin.dailyAttempt')}
-                onPress={() => onNavigateToCheckin(level.id, level.name)}
+                onPress={() => onNavigateToCheckin(level.id, level.name, level.userRole)}
                 style={styles.checkinButton}
               />
             </View>

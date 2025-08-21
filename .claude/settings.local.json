@@ -6,12 +6,14 @@
       "Bash(npx tsc:*)",
       "Bash(npm test)",
       "Bash(npx prisma generate:*)",
-      "Bash(npx prisma migrate dev:*)"
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [
-      "C:\\c\\dev\\Origin-challenge-app"
+      "C:\\c\\dev\\Origin-challenge-app",
+      "C:\\c\\dev"
     ]
   }
 }
